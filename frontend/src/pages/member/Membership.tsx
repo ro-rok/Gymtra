@@ -2,14 +2,25 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
-import { getMemberMembership } from "@/lib/data-service";
+import { listMembershipsRequest } from "@/lib/membership-api";
 import { CreditCard, Calendar, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 
 const Membership = () => {
   const { user } = useAuth();
-  const memberId = user?.id === "u-member-1" ? "m1" : user?.id || "";
-  const ms = getMemberMembership(memberId);
+  const memberId = user?.id || "";
+  const [ms, setMs] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    listMembershipsRequest()
+      .then((rows) => setMs(rows.find((row) => row.memberId === memberId) || null))
+      .finally(() => setLoading(false));
+  }, [memberId]);
+
+  if (loading) {
+    return <div className="text-sm text-muted-foreground py-8">Loading plan...</div>;
+  }
 
   if (!ms) {
     return (

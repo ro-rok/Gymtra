@@ -4,21 +4,23 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { PageMeta } from "@/components/PageMeta";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { login, user } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (user?.role === "super_admin") {
-    navigate("/admin", { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (user?.role === "super_admin") {
+      navigate("/admin", { replace: true });
+    }
+  }, [navigate, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +36,7 @@ const AdminLogin = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center gradient-hero text-secondary-foreground p-6 relative overflow-hidden">
+      <PageMeta title="Super Admin Login | GymOS" description="Platform administration login for GymOS." canonicalPath="/admin/login" noindex />
       <div className="absolute inset-0 gradient-mesh opacity-50" />
       <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-accent/30 blur-3xl" />
       <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-primary/20 blur-3xl" />
@@ -60,7 +63,7 @@ const AdminLogin = () => {
             <Input id="pw" type="password" className="mt-1.5 h-11" placeholder="••••••••"
               value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
-          <Button type="submit" className="w-full h-11 font-semibold gap-2" disabled={loading}>
+          <Button type="submit" className="w-full h-11 font-semibold gap-2" disabled={loading || authLoading}>
             {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</> : "Continue"}
           </Button>
         </form>

@@ -3,28 +3,28 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { getStaff, addStaffMember } from "@/lib/data-service";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Users } from "lucide-react";
+import { listStaffRequest } from "@/lib/staff-api";
+import type { StaffMember } from "@/lib/types";
 
 const Staff = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const gymId = user?.gymId || "1";
-  const [, setRefresh] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", role: "Trainer", salary: "" });
-  const allStaff = getStaff(gymId);
+  const [allStaff, setAllStaff] = useState<StaffMember[]>([]);
+  useEffect(() => {
+    listStaffRequest().then(setAllStaff).catch(() => setAllStaff([]));
+  }, []);
 
   const handleAdd = () => {
-    addStaffMember({ gymId, name: form.name, role: form.role, salary: Number(form.salary), status: "pending" });
-    toast({ title: "Staff member added" });
+    toast({ title: "Staff is managed from user accounts in this phase." });
     setShowForm(false);
     setForm({ name: "", role: "Trainer", salary: "" });
-    setRefresh(n => n + 1);
   };
 
   return (

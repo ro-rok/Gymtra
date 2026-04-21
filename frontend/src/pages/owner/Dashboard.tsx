@@ -7,7 +7,11 @@ import { SectionCard } from "@/components/SectionCard";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { getMembers, getMemberships, getAttendance, getExpenses } from "@/lib/data-service";
+import { getAttendanceForDayRequest } from "@/lib/attendance-api";
+import { listMembersRequest, memberDashboardSummaryRequest } from "@/lib/member-api";
+import { listMembershipsRequest } from "@/lib/membership-api";
+import { useEffect, useState } from "react";
+import { listExpensesRequest } from "@/lib/expenses-api";
 
 const waLink = (phone: string, msg: string) =>
   `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(msg)}`;
@@ -15,15 +19,26 @@ const waLink = (phone: string, msg: string) =>
 const OwnerDashboard = () => {
   const { gymSlug } = useParams();
   const { user } = useAuth();
-  const gymId = user?.gymId || "1";
-  const members = getMembers(gymId);
-  const memberships = getMemberships(gymId);
-  const today = new Date().toISOString().split("T")[0];
-  const todayAttendance = getAttendance(gymId, today);
-  const exps = getExpenses(gymId);
-  const monthTotal = exps.reduce((s, e) => s + e.amount, 0);
+  const [members, setMembers] = useState<any[]>([]);
+  const [memberships, setMemberships] = useState<any[]>([]);
+  const [summary, setSummary] = useState<{ pendingRenewal: number; active: number } | null>(null);
+  const [todayAttendance, setTodayAttendance] = useState<any[]>([]);
+  const [monthTotal, setMonthTotal] = useState(0);
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    Promise.all([listMembersRequest(), listMembershipsRequest(), memberDashboardSummaryRequest(), getAttendanceForDayRequest(today), listExpensesRequest()])
+      .then(([mRows, msRows, sm, attendance, expenses]) => {
+        setMembers(mRows);
+        setMemberships(msRows);
+        setSummary(sm);
+        setTodayAttendance(attendance.items);
+        const monthPrefix = new Date().toISOString().slice(0, 7);
+        setMonthTotal(expenses.filter((e) => e.date.startsWith(monthPrefix)).reduce((sum, e) => sum + e.amount, 0));
+      })
+      .catch(() => undefined);
+  }, []);
 
-  const expiring = members.filter((m) => m.status !== "active");
+  const expiring = members.filter((m: any) => m.status !== "active");
   const ghosts = members.filter((m) => {
     const att = todayAttendance.filter(a => a.memberId === m.id);
     return att.length === 0 && m.status === "active";
@@ -52,8 +67,8 @@ const OwnerDashboard = () => {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KpiCard label="Active Members" value={members.filter(m => m.status === "active").length} icon={Users} accent="primary" trend="up" trendValue="+3 this wk" />
-        <KpiCard label="Renewals due" value={expiring.length} hint="needs follow-up" icon={AlertCircle} accent="warning" />
+        <KpiCard label="Active Members" value={summary?.active ?? members.filter((m: any) => m.status === "active").length} icon={Users} accent="primary" trend="up" trendValue="+3 this wk" />
+        <KpiCard label="Renewals due" value={summary?.pendingRenewal ?? expiring.length} hint="needs follow-up" icon={AlertCircle} accent="warning" />
         <KpiCard label="Today's check-ins" value={todayAttendance.length} hint={`${checkInRate}% of active`} icon={CalendarCheck} accent="success" />
         <KpiCard label="Monthly expenses" value={`₹${(monthTotal / 1000).toFixed(0)}K`} icon={Receipt} accent="accent" animated={false} />
       </div>

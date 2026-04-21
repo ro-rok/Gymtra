@@ -7,10 +7,13 @@ import { SectionCard } from "@/components/SectionCard";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Activity, Target, Calendar, Flame, Salad, TrendingUp, ArrowLeft, Check } from "lucide-react";
-import { getMember, getMemberMembership, getMemberAttendance, getProgress, getDietTemplates, getMemberDiet, assignDiet } from "@/lib/data-service";
+import { getMemberRequest } from "@/lib/member-api";
+import { listMembershipsRequest } from "@/lib/membership-api";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { assignDietTemplateRequest, getMemberActiveDietRequest, listDietTemplatesRequest } from "@/lib/diet-api";
+import { listProgressLogsRequest } from "@/lib/progress-api";
 
 const MemberProfile = () => {
   const { id, gymSlug } = useParams();
@@ -18,8 +21,36 @@ const MemberProfile = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [, force] = useState(0);
-  const m = getMember(id || "");
+  const [m, setMember] = useState<any | null>(null);
+  const [ms, setMs] = useState<any | null>(null);
+  const [progress, setProgress] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [assignedTemplate, setAssignedTemplate] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    Promise.all([
+      getMemberRequest(id),
+      listMembershipsRequest(),
+      listProgressLogsRequest(id),
+      listDietTemplatesRequest(),
+      getMemberActiveDietRequest(id),
+    ])
+      .then(([member, memberships, progressRows, templateRows, activeDiet]) => {
+        setMember(member);
+        setMs(memberships.find((entry) => entry.memberId === id) || null);
+        setProgress(progressRows.items || []);
+        setTemplates(templateRows || []);
+        setAssignedTemplate(activeDiet.template || null);
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return <div className="text-sm text-muted-foreground py-8">Loading member profile...</div>;
+  }
   if (!m) {
     return (
       <EmptyState
@@ -31,18 +62,13 @@ const MemberProfile = () => {
     );
   }
 
-  const ms = getMemberMembership(m.id);
-  const attendance = getMemberAttendance(m.id);
-  const progress = getProgress(m.id);
   const chartData = progress.map(p => ({ date: p.date.slice(5), weight: p.weightKg }));
-  const templates = getDietTemplates(m.gymId);
-  const { template: assignedTemplate } = getMemberDiet(m.id);
+  const attendance = [];
 
-  const handleAssign = (templateId: string) => {
-    assignDiet({
-      memberId: m.id, templateId, gymId: m.gymId,
-      assignedBy: user?.id || "", assignedAt: new Date().toISOString(), active: true,
-    });
+  const handleAssign = async (templateId: string) => {
+    await assignDietTemplateRequest({ memberId: m.id, templateId });
+    const activeDiet = await getMemberActiveDietRequest(m.id);
+    setAssignedTemplate(activeDiet.template || null);
     toast({ title: "Diet assigned", description: `${m.name} now has a new active plan.` });
     force(n => n + 1);
   };

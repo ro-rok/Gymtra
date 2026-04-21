@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { PageTransition } from "@/components/PageTransition";
+import { PageMeta } from "@/components/PageMeta";
 
 export type NavItem = { to: string; label: string; icon: LucideIcon };
 
@@ -20,13 +21,14 @@ export const AppShell = ({ brand, nav, children }: AppShellProps) => {
   const navigate = useNavigate();
   const resolve = (to: string) => (gymSlug ? to.replace(":gymSlug", gymSlug) : to);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate(gymSlug ? `/${gymSlug}` : "/");
   };
 
   return (
     <div className="min-h-screen bg-background">
+      <PageMeta title={`${brand.name} | ${brand.role}`} canonicalPath={typeof window !== "undefined" ? window.location.pathname : "/"} noindex />
       {/* Desktop sidebar */}
       <aside className="hidden md:flex fixed inset-y-0 left-0 w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border z-40">
         <div className="p-5 border-b border-sidebar-border">

@@ -8,9 +8,10 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Confetti } from "@/components/Confetti";
 import {
-  getDailyTasks, saveDailyTasks, getTaskStreak,
-  getMemberMembership, getMemberAttendance, logWaterIntake
-} from "@/lib/data-service";
+  getMemberDashboardAttendanceTasksRequest,
+  upsertDailyTasksRequest,
+} from "@/lib/attendance-api";
+import { listMembershipsRequest } from "@/lib/membership-api";
 
 const Task = ({ icon: Icon, label, hint, done, onToggle }: any) => (
   <button
@@ -43,10 +44,28 @@ const MemberDashboard = () => {
   const { gymSlug } = useParams();
   const { user } = useAuth();
   const today = new Date().toISOString().split("T")[0];
-  const memberId = user?.id === "u-member-1" ? "m1" : user?.id || "";
-  const gymId = user?.gymId || "1";
+  const memberId = user?.id || "";
+  const [membership, setMembership] = useState<any | null>(null);
+  useEffect(() => {
+    listMembershipsRequest()
+      .then((rows) => setMembership(rows.find((row) => row.memberId === memberId) || null))
+      .catch(() => setMembership(null));
+  }, [memberId]);
 
-  const existing = getDailyTasks(memberId, today);
+  const [existing, setExisting] = useState<any | null>(null);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [streak, setStreak] = useState(0);
+  const [absence30, setAbsence30] = useState(0);
+  useEffect(() => {
+    getMemberDashboardAttendanceTasksRequest()
+      .then((data) => {
+        setExisting(data.todayTasks);
+        setAttendance(data.attendance);
+        setStreak(data.stats.streak);
+        setAbsence30(data.stats.absentDays30);
+      })
+      .catch(() => undefined);
+  }, []);
   const [tasks, setTasks] = useState({
     workout: existing?.workout || false,
     meal: existing?.meal || false,
@@ -54,11 +73,20 @@ const MemberDashboard = () => {
   });
   const [waterLiters, setWaterLiters] = useState(existing?.waterLiters || 0);
   const [celebrate, setCelebrate] = useState(false);
+  useEffect(() => {
+    if (!existing) return;
+    setTasks({
+      workout: Boolean(existing.workout),
+      meal: Boolean(existing.meal),
+      water: Boolean(existing.water),
+    });
+    setWaterLiters(Number(existing.waterLiters || 0));
+  }, [existing]);
 
   const toggle = (k: keyof typeof tasks) => {
     const updated = { ...tasks, [k]: !tasks[k] };
     setTasks(updated);
-    saveDailyTasks({ memberId, gymId, date: today, ...updated, waterLiters });
+    upsertDailyTasksRequest({ date: today, ...updated, waterLiters }).catch(() => undefined);
     if (updated.workout && updated.meal && updated.water && !(tasks.workout && tasks.meal && tasks.water)) {
       setCelebrate(true);
       setTimeout(() => setCelebrate(false), 100);
@@ -71,14 +99,11 @@ const MemberDashboard = () => {
     const isWaterDone = newLiters >= 2.5;
     const updated = { ...tasks, water: isWaterDone };
     setTasks(updated);
-    saveDailyTasks({ memberId, gymId, date: today, ...updated, waterLiters: newLiters });
+    upsertDailyTasksRequest({ date: today, ...updated, waterLiters: newLiters }).catch(() => undefined);
   };
 
   const done = Object.values(tasks).filter(Boolean).length;
   const pct = Math.round((done / 3) * 100);
-  const streak = getTaskStreak(memberId);
-  const membership = getMemberMembership(memberId);
-  const attendance = getMemberAttendance(memberId);
 
   return (
     <>
@@ -112,9 +137,10 @@ const MemberDashboard = () => {
 
       <div className="grid grid-cols-3 gap-3 mb-6">
         <KpiCard label="Streak" value={streak} hint="days" icon={Flame} accent="warning" />
-        <KpiCard label="Sessions" value={attendance.length} hint="total" icon={TrendingUp} accent="primary" />
+        <KpiCard label="Sessions" value={attendance.filter((a) => a.status === "present").length} hint="total" icon={TrendingUp} accent="primary" />
         <KpiCard label="Plan ends" value={membership?.expiryDate?.slice(5) || "—"} icon={Calendar} accent="accent" animated={false} />
       </div>
+      <div className="text-xs text-muted-foreground mb-4">Absent days in last 30: {absence30}</div>
 
       <h2 className="text-lg font-display font-semibold mb-3">Today's check-list</h2>
       <div className="space-y-3 mb-6">

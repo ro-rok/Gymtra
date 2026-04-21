@@ -7,17 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  getStaff, addStaffMember, updateStaffPaymentStatus,
-  getLeaveRecords, addLeaveRecord, deleteLeaveRecord
-} from "@/lib/data-service";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { listStaffRequest } from "@/lib/staff-api";
+import { createPayrollRecordRequest, listPayrollRecordsRequest, updatePayrollRecordRequest } from "@/lib/payroll-api";
+import { createLeaveRecordRequest, listLeaveRecordsRequest, updateLeaveRecordRequest } from "@/lib/leave-api";
 
 const Payroll = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const gymId = user?.gymId || "1";
   const [, setRefresh] = useState(0);
   const refresh = () => setRefresh(n => n + 1);
 
@@ -27,42 +25,79 @@ const Payroll = () => {
   const [showLeaveForm, setShowLeaveForm] = useState(false);
   const [leaveForm, setLeaveForm] = useState({ staffId: "", date: new Date().toISOString().split("T")[0], reason: "", type: "sick" as "sick" | "vacation" | "personal" });
 
-  const allStaff = getStaff(gymId);
-  const leave = getLeaveRecords(gymId);
+  const [allStaff, setAllStaff] = useState<any[]>([]);
+  const [payroll, setPayroll] = useState<any[]>([]);
+  const [leave, setLeave] = useState<any[]>([]);
+  useEffect(() => {
+    Promise.all([listStaffRequest(), listPayrollRecordsRequest(), listLeaveRecordsRequest()])
+      .then(([staffRows, payrollRows, leaveRows]) => {
+        setAllStaff(staffRows);
+        setPayroll(payrollRows);
+        setLeave(leaveRows.filter((l: any) => l.status !== "cancelled"));
+      })
+      .catch(() => {
+        setAllStaff([]);
+        setPayroll([]);
+        setLeave([]);
+      });
+  }, []);
 
-  const totalSalary = allStaff.reduce((s, m) => s + m.salary, 0);
+  const monthKey = new Date().toISOString().slice(0, 7);
+  const payrollByStaff = useMemo(() => {
+    const map = new Map<string, any>();
+    payroll
+      .filter((r) => r.month === monthKey)
+      .forEach((r) => map.set(r.staffId, r));
+    return map;
+  }, [payroll, monthKey]);
+  const totalSalary = allStaff.reduce((s, m) => s + (payrollByStaff.get(m.id)?.amount ?? m.salary ?? 0), 0);
   const paidCount = allStaff.filter(s => s.status === "paid").length;
-  const pendingTotal = allStaff.filter(s => s.status === "pending").reduce((s, m) => s + m.salary, 0);
+  const pendingTotal = allStaff
+    .filter((s) => s.status === "pending")
+    .reduce((s, m) => s + (payrollByStaff.get(m.id)?.amount ?? m.salary ?? 0), 0);
 
-  const togglePaid = (id: string, current: "paid" | "pending") => {
+  const togglePaid = async (id: string, current: "paid" | "pending") => {
     const next = current === "paid" ? "pending" : "paid";
-    updateStaffPaymentStatus(id, next);
+    const existing = payroll.find((r) => r.staffId === id && r.month === monthKey);
+    if (existing) {
+      await updatePayrollRecordRequest(existing.id, { status: next });
+    } else {
+      const staff = allStaff.find((s) => s.id === id);
+      await createPayrollRecordRequest({ staffId: id, month: monthKey, amount: Number(staff?.salary || 0), status: next });
+    }
+    const latest = await listPayrollRecordsRequest();
+    setPayroll(latest);
+    const latestStaff = await listStaffRequest();
+    setAllStaff(latestStaff);
     toast({ title: next === "paid" ? "Marked as paid 💰" : "Marked pending" });
     refresh();
   };
 
   const addStaff = () => {
-    addStaffMember({ gymId, name: staffForm.name, role: staffForm.role, salary: Number(staffForm.salary), status: "pending" });
-    toast({ title: "Staff member added" });
+    toast({ title: "Create staff from user accounts in this phase." });
     setShowStaffForm(false);
     setStaffForm({ name: "", role: "Trainer", salary: "" });
     refresh();
   };
 
-  const addLeave = () => {
+  const addLeave = async () => {
     const staff = allStaff.find(s => s.id === leaveForm.staffId);
-    addLeaveRecord({
-      staffId: leaveForm.staffId, staffName: staff?.name, gymId,
+    await createLeaveRecordRequest({
+      staffId: leaveForm.staffId,
       date: leaveForm.date, reason: leaveForm.reason || undefined, type: leaveForm.type,
     });
+    const latest = await listLeaveRecordsRequest();
+    setLeave(latest.filter((l: any) => l.status !== "cancelled"));
     toast({ title: "Leave recorded" });
     setShowLeaveForm(false);
     setLeaveForm({ staffId: "", date: new Date().toISOString().split("T")[0], reason: "", type: "sick" });
     refresh();
   };
 
-  const removeLeave = (id: string) => {
-    deleteLeaveRecord(id);
+  const removeLeave = async (id: string) => {
+    await updateLeaveRecordRequest(id, { status: "cancelled" });
+    const latest = await listLeaveRecordsRequest();
+    setLeave(latest.filter((l: any) => l.status !== "cancelled"));
     toast({ title: "Leave removed" });
     refresh();
   };

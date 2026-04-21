@@ -3,8 +3,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
-import { createMember, createMembership } from "@/lib/data-service";
+import { createMemberRequest } from "@/lib/member-api";
+import { createMembershipRequest } from "@/lib/membership-api";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,9 +39,9 @@ const Field = ({ label, required, children }: any) => (
 const AddMember = () => {
   const navigate = useNavigate();
   const { gymSlug } = useParams();
-  const { user } = useAuth();
   const { toast } = useToast();
-  const gymId = user?.gymId || "1";
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: "", phone: "", email: "", age: "", gender: "",
@@ -53,32 +53,49 @@ const AddMember = () => {
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [k]: e.target.value });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const avatar = form.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-    const member = createMember({
-      userId: `user-${Date.now()}`, gymId, name: form.name, phone: form.phone,
-      email: form.email || undefined, age: form.age ? Number(form.age) : undefined,
-      gender: form.gender || undefined, heightCm: form.heightCm ? Number(form.heightCm) : undefined,
-      currentWeightKg: form.currentWeightKg ? Number(form.currentWeightKg) : undefined,
-      goalWeightKg: form.goalWeightKg ? Number(form.goalWeightKg) : undefined,
-      activityLevel: form.activityLevel || undefined, allergies: form.allergies || undefined,
-      foodPreference: form.foodPreference || undefined,
-      medicalConditions: form.medicalConditions || undefined,
-      joinDate: form.startDate, avatar, status: "active",
-    });
+    setSaving(true);
+    setFormError(null);
+    try {
+      const member = await createMemberRequest({
+        name: form.name,
+        phone: form.phone,
+        email: form.email,
+        password: "member123",
+        joinDate: form.startDate,
+        age: form.age ? Number(form.age) : undefined,
+        gender: form.gender ? (form.gender.toLowerCase() as "male" | "female" | "other") : undefined,
+        heightCm: form.heightCm ? Number(form.heightCm) : undefined,
+        currentWeightKg: form.currentWeightKg ? Number(form.currentWeightKg) : undefined,
+        goalWeightKg: form.goalWeightKg ? Number(form.goalWeightKg) : undefined,
+        activityLevel: form.activityLevel
+          ? (form.activityLevel === "Lightly active"
+              ? "lightly_active"
+              : form.activityLevel.toLowerCase().replace(" ", "_")) as
+              | "sedentary"
+              | "lightly_active"
+              | "active"
+              | "athlete"
+          : undefined,
+        allergies: form.allergies || undefined,
+        foodPreference: form.foodPreference || undefined,
+        medicalConditions: form.medicalConditions || undefined,
+      });
 
-    const months = form.plan === "Monthly" ? 1 : form.plan === "Quarterly" ? 3 : 6;
-    const expiry = new Date(form.startDate);
-    expiry.setMonth(expiry.getMonth() + months);
-    createMembership({
-      memberId: member.id, gymId, plan: form.plan as any,
-      amount: PLAN_PRICES[form.plan],
-      startDate: form.startDate, expiryDate: expiry.toISOString().split("T")[0], status: "active",
-    });
-
-    toast({ title: "Member added 💪", description: `${form.name} is on the ${form.plan} plan.` });
-    navigate(`/${gymSlug}/owner/members`);
+      await createMembershipRequest({
+        memberId: member.id,
+        plan: form.plan as any,
+        amount: PLAN_PRICES[form.plan],
+        startDate: form.startDate,
+      });
+      toast({ title: "Member added", description: `${form.name} is on the ${form.plan} plan.` });
+      navigate(`/${gymSlug}/owner/members`);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Could not save member");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const initials = form.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?";
@@ -109,6 +126,7 @@ const AddMember = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        {formError && <div className="text-sm text-destructive">{formError}</div>}
         <Section icon={User} title="Personal info" hint="Who's joining?">
           <Field label="Full name" required><Input placeholder="Aarav Sharma" required value={form.name} onChange={set("name")} /></Field>
           <Field label="Phone" required><Input placeholder="+91 98765 43210" required value={form.phone} onChange={set("phone")} /></Field>
@@ -183,7 +201,7 @@ const AddMember = () => {
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
-          <Button type="submit" className="gap-2"><Save className="w-4 h-4" /> Save member</Button>
+          <Button type="submit" className="gap-2" disabled={saving}><Save className="w-4 h-4" /> {saving ? "Saving..." : "Save member"}</Button>
         </div>
       </form>
     </>

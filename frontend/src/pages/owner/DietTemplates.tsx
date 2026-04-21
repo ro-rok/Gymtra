@@ -2,31 +2,36 @@ import { Plus, Salad } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { getDietTemplates, createDietTemplate } from "@/lib/data-service";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { createDietTemplateRequest, listDietTemplatesRequest } from "@/lib/diet-api";
+import type { DietTemplate } from "@/lib/types";
 
 const DietTemplates = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const gymId = user?.gymId || "1";
-  const [, setRefresh] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", goal: "loss" as "loss" | "gain" | "maintain", calories: "", meals: "4", tags: "" });
-  const templates = getDietTemplates(gymId);
+  const [templates, setTemplates] = useState<DietTemplate[]>([]);
 
-  const handleAdd = () => {
-    createDietTemplate({
+  useEffect(() => {
+    listDietTemplatesRequest().then(setTemplates).catch(() => setTemplates([]));
+  }, []);
+
+  const handleAdd = async () => {
+    await createDietTemplateRequest({
       gymId, name: form.name, goal: form.goal, calories: Number(form.calories),
       meals: Number(form.meals), tags: form.tags.split(",").map(t => t.trim()).filter(Boolean),
       createdBy: user?.id || "",
     });
+    const latest = await listDietTemplatesRequest();
+    setTemplates(latest);
     toast({ title: "Diet template created" });
     setShowForm(false);
     setForm({ name: "", goal: "loss", calories: "", meals: "4", tags: "" });
-    setRefresh(n => n + 1);
   };
 
   return (

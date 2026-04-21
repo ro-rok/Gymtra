@@ -6,13 +6,18 @@ import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { getMembers, getAttendance } from "@/lib/data-service";
+import { getAttendance } from "@/lib/data-service";
+import { listMembersRequest } from "@/lib/member-api";
+import { useEffect, useState } from "react";
 
 const TrainerDashboard = () => {
   const { gymSlug } = useParams();
   const { user } = useAuth();
   const gymId = user?.gymId || "1";
-  const members = getMembers(gymId);
+  const [members, setMembers] = useState<any[]>([]);
+  useEffect(() => {
+    listMembersRequest().then(setMembers).catch(() => setMembers([]));
+  }, []);
   const today = new Date().toISOString().split("T")[0];
   const todayAttendance = getAttendance(gymId, today);
   const checkedIn = todayAttendance.length;

@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { Search, Dumbbell, ArrowRight, Shield, Zap, Users, MessageCircle, BarChart3, Salad, CalendarCheck, Bell, Building2, Star, Check, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { mockGyms } from "@/lib/mock-data";
+import { fetchPublicGyms } from "@/lib/tenant-api";
+import type { Gym } from "@/lib/types";
 import heroImg from "@/assets/hero-fitness.jpg";
+import { PageMeta } from "@/components/PageMeta";
 
 const features = [
   { icon: Users, title: "Member CRM", desc: "Profiles, goals, allergies, plans — every member, one tap away." },
@@ -30,10 +32,35 @@ const tiers = [
 
 const Landing = () => {
   const [q, setQ] = useState("");
-  const filtered = mockGyms.filter((g) => g.name.toLowerCase().includes(q.toLowerCase()) || g.city.toLowerCase().includes(q.toLowerCase()));
+  const [gyms, setGyms] = useState<Gym[]>([]);
+  const [loadingGyms, setLoadingGyms] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchPublicGyms()
+      .then((items) => {
+        if (mounted) setGyms(items);
+      })
+      .catch(() => {
+        if (mounted) setGyms([]);
+      })
+      .finally(() => {
+        if (mounted) setLoadingGyms(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filtered = gyms.filter((g) => g.name.toLowerCase().includes(q.toLowerCase()) || g.city.toLowerCase().includes(q.toLowerCase()));
 
   return (
     <div className="min-h-screen bg-background">
+      <PageMeta
+        title="GymOS - Multi-tenant gym management"
+        description="Find your gym, sign in, and manage modern gym operations."
+        canonicalPath="/"
+      />
       {/* ─── HERO ─── */}
       <section className="relative overflow-hidden gradient-hero text-secondary-foreground">
         <div className="absolute inset-0 gradient-mesh opacity-60" />
@@ -185,7 +212,9 @@ const Landing = () => {
           <div>
             <div className="text-xs font-bold text-primary uppercase tracking-[0.2em] mb-2">Gym directory</div>
             <h2 className="text-3xl md:text-4xl font-display font-bold">Find your gym</h2>
-            <p className="text-sm text-muted-foreground mt-2">{filtered.length} gym{filtered.length === 1 ? "" : "s"} live on the platform</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              {loadingGyms ? "Loading gyms..." : `${filtered.length} gym${filtered.length === 1 ? "" : "s"} live on the platform`}
+            </p>
           </div>
           <div className="relative md:w-80">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -229,7 +258,7 @@ const Landing = () => {
                   <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{gym.tagline}</p>
                   <div className="flex items-center gap-2 mt-4 text-xs">
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">📍 {gym.city}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{gym.members} members</span>
+            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{gym.members ?? 0} members</span>
                   </div>
                   <div className="mt-5 flex items-center justify-between text-sm font-semibold text-primary">
                     Enter gym <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

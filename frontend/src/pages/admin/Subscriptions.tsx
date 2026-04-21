@@ -1,28 +1,39 @@
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { KpiCard } from "@/components/KpiCard";
-import { SectionCard } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Users, TrendingUp, ArrowUpRight } from "lucide-react";
-import { getGyms, getSubscriptions, updateSubscription } from "@/lib/data-service";
+import { CreditCard, Users, TrendingUp } from "lucide-react";
+import { listAdminGymsRequest } from "@/lib/admin-api";
+import { listAdminSubscriptionsRequest, toSubscription, updateAdminSubscriptionRequest } from "@/lib/subscription-admin-api";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const AdminSubscriptions = () => {
   const { toast } = useToast();
-  const [, setRefresh] = useState(0);
-  const subs = getSubscriptions();
-  const gyms = getGyms();
+  const [subs, setSubs] = useState<any[]>([]);
+  const [gyms, setGyms] = useState<any[]>([]);
+
+  const loadData = () =>
+    Promise.all([listAdminSubscriptionsRequest(), listAdminGymsRequest()])
+      .then(([s, g]) => {
+        setSubs(s.map(toSubscription));
+        setGyms(g);
+      })
+      .catch(() => toast({ title: "Unable to load subscriptions", variant: "destructive" }));
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const totalMrr = subs.filter(s => s.status === "active").reduce((sum, s) => sum + (s.monthlyAmount || 0) + Math.max(0, s.usedSeats - 1) * (s.extraSeatPrice || 0), 0);
   const activeCount = subs.filter(s => s.status === "active").length;
   const trialCount = subs.filter(s => s.status === "trial").length;
 
-  const toggleStatus = (id: string, current: string) => {
+  const toggleStatus = async (gymId: string, current: string) => {
     const next = current === "active" ? "expired" : "active";
-    updateSubscription(id, { status: next as any });
+    await updateAdminSubscriptionRequest(gymId, { status: next as any });
     toast({ title: `Marked ${next}` });
-    setRefresh(n => n + 1);
+    loadData();
   };
 
   return (
@@ -56,7 +67,7 @@ const AdminSubscriptions = () => {
                   <div className="font-display text-lg font-bold tabular-nums">₹{computed.toLocaleString("en-IN")}<span className="text-xs font-normal text-muted-foreground">/mo</span></div>
                   <div className="text-[10px] text-muted-foreground">Base ₹{s.monthlyAmount} + ₹{s.extraSeatPrice}/seat</div>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => toggleStatus(s.id, s.status)}>
+                <Button size="sm" variant="outline" onClick={() => toggleStatus(s.gymId, s.status)}>
                   {s.status === "active" ? "Suspend" : "Reactivate"}
                 </Button>
               </div>

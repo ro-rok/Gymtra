@@ -3,8 +3,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { getMember, updateMember, getMemberAttendance, getTaskStreak } from "@/lib/data-service";
-import { useState } from "react";
+import { getMemberAttendance, getTaskStreak } from "@/lib/data-service";
+import { getMemberRequest, updateSelfMemberProfileRequest } from "@/lib/member-api";
+import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Flame, Activity, Target, Save, User as UserIcon, Apple, Heart } from "lucide-react";
 
@@ -30,8 +31,16 @@ const Field = ({ label, children }: any) => (
 const MemberProfile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const memberId = user?.id === "u-member-1" ? "m1" : user?.id || "";
-  const member = getMember(memberId);
+  const memberId = user?.id || "";
+  const [member, setMember] = useState<any | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!memberId) return;
+    getMemberRequest(memberId)
+      .then(setMember)
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load profile"));
+  }, [memberId]);
   const attendance = getMemberAttendance(memberId);
   const streak = getTaskStreak(memberId);
 
@@ -53,21 +62,26 @@ const MemberProfile = () => {
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [k]: e.target.value });
 
-  const handleSave = () => {
-    if (member) {
-      updateMember(member.id, {
-        name: form.name, phone: form.phone, email: form.email || undefined,
-        age: form.age ? Number(form.age) : undefined, gender: form.gender || undefined,
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updated = await updateSelfMemberProfileRequest({
+        age: form.age ? Number(form.age) : undefined,
         heightCm: form.heightCm ? Number(form.heightCm) : undefined,
         currentWeightKg: form.currentWeightKg ? Number(form.currentWeightKg) : undefined,
         goalWeightKg: form.goalWeightKg ? Number(form.goalWeightKg) : undefined,
-        activityLevel: form.activityLevel || undefined,
+        activityLevel: form.activityLevel ? form.activityLevel.toLowerCase().replace(" ", "_") : undefined,
         foodPreference: form.foodPreference || undefined,
         allergies: form.allergies || undefined,
         medicalConditions: form.medicalConditions || undefined,
       });
+      setMember(updated);
+      toast({ title: "Profile saved", description: "Your details are up to date." });
+    } catch (err) {
+      toast({ title: "Save failed", description: err instanceof Error ? err.message : "Try again." });
+    } finally {
+      setSaving(false);
     }
-    toast({ title: "Profile saved", description: "Your details are up to date." });
   };
 
   const initials = (form.name || user?.name || "U").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
@@ -78,6 +92,7 @@ const MemberProfile = () => {
   return (
     <>
       <PageHeader title="Your Profile" subtitle="Keep this fresh — your trainer plans around it." />
+      {error && <div className="mb-4 text-sm text-destructive">{error}</div>}
 
       {/* Hero card */}
       <div className="rounded-3xl gradient-hero text-secondary-foreground p-6 md:p-8 mb-6 relative overflow-hidden">
@@ -140,8 +155,8 @@ const MemberProfile = () => {
 
       {/* Sticky-ish save bar */}
       <div className="mt-6 flex justify-end">
-        <Button onClick={handleSave} className="gap-2 h-11 px-6">
-          <Save className="w-4 h-4" /> Save changes
+        <Button onClick={handleSave} className="gap-2 h-11 px-6" disabled={saving}>
+          <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save changes"}
         </Button>
       </div>
     </>

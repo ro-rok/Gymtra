@@ -5,11 +5,22 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { SectionCard } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { getGyms, getSubscriptions } from "@/lib/data-service";
+import { listAdminGymsRequest } from "@/lib/admin-api";
+import { listAdminSubscriptionsRequest, toSubscription } from "@/lib/subscription-admin-api";
+import { useEffect, useState } from "react";
 
 const AdminDashboard = () => {
-  const gyms = getGyms();
-  const subs = getSubscriptions();
+  const [gyms, setGyms] = useState<any[]>([]);
+  const [subs, setSubs] = useState<any[]>([]);
+
+  useEffect(() => {
+    Promise.all([listAdminGymsRequest(), listAdminSubscriptionsRequest()])
+      .then(([g, s]) => {
+        setGyms(g);
+        setSubs(s.map(toSubscription));
+      })
+      .catch(() => undefined);
+  }, []);
   const totalMembers = gyms.reduce((s, g: any) => s + (g.members || 0), 0);
   const activeGyms = gyms.filter(g => g.isActive).length;
   const mrr = subs.filter(s => s.status === "active").reduce((sum, s) => sum + (s.monthlyAmount || 0) + Math.max(0, s.usedSeats - 1) * (s.extraSeatPrice || 0), 0);

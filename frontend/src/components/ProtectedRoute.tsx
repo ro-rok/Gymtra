@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/contexts/TenantContext";
 import type { Role } from "@/lib/types";
 
 interface ProtectedRouteProps {
@@ -10,9 +11,10 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ allowedRoles, children, gymScoped = false }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
+  const { loading: tenantLoading, invalidTenant } = useTenant();
   const location = useLocation();
 
-  if (loading) {
+  if (loading || (gymScoped && tenantLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -20,10 +22,15 @@ export const ProtectedRoute = ({ allowedRoles, children, gymScoped = false }: Pr
     );
   }
 
+  if (gymScoped && invalidTenant) {
+    return <Navigate to="/" replace />;
+  }
+
   if (!user) {
     // Redirect to appropriate login
     const isAdmin = location.pathname.startsWith("/admin");
-    const loginPath = isAdmin ? "/admin/login" : "/";
+    const gymSlug = location.pathname.split("/")[1];
+    const loginPath = isAdmin ? "/admin/login" : gymSlug ? `/${gymSlug}` : "/";
     return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 

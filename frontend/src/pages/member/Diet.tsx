@@ -1,8 +1,10 @@
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/contexts/AuthContext";
-import { getMemberDiet } from "@/lib/data-service";
 import { todayMeals } from "@/lib/mock-data";
 import { Salad, Sparkles, Flame, Beef, Wheat, Droplets } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getMemberActiveDietRequest } from "@/lib/diet-api";
+import type { DietTemplate } from "@/lib/types";
 
 const parseMacros = (s: string) => {
   const p = /P(\d+)/.exec(s)?.[1];
@@ -23,8 +25,10 @@ const MacroChip = ({ icon: Icon, label, value, color }: any) => (
 
 const MemberDiet = () => {
   const { user } = useAuth();
-  const memberId = user?.id === "u-member-1" ? "m1" : user?.id || "";
-  const { template } = getMemberDiet(memberId);
+  const [template, setTemplate] = useState<DietTemplate | null>(null);
+  useEffect(() => {
+    getMemberActiveDietRequest().then((data) => setTemplate(data.template)).catch(() => setTemplate(null));
+  }, []);
   const meals = template?.mealPlan || todayMeals;
   const totalCal = meals.reduce((s, m) => s + m.cal, 0);
   const target = template?.calories || totalCal;

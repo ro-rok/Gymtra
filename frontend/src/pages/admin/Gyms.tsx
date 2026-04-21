@@ -2,31 +2,39 @@ import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { getGyms, createGym, updateGym } from "@/lib/data-service";
-import { useState } from "react";
+import { createAdminGymRequest, listAdminGymsRequest, updateAdminGymStatusRequest } from "@/lib/admin-api";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 const AdminGyms = () => {
   const { toast } = useToast();
-  const [, setRefresh] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", slug: "", city: "", tagline: "" });
-  const gyms = getGyms();
+  const [gyms, setGyms] = useState<any[]>([]);
 
-  const handleAdd = () => {
-    createGym({ name: form.name, slug: form.slug, city: form.city, tagline: form.tagline, logo: "🏋️", isActive: true, createdAt: new Date().toISOString().split("T")[0] });
+  const loadGyms = () =>
+    listAdminGymsRequest()
+      .then(setGyms)
+      .catch(() => toast({ title: "Unable to load gyms", variant: "destructive" }));
+
+  useEffect(() => {
+    loadGyms();
+  }, []);
+
+  const handleAdd = async () => {
+    await createAdminGymRequest({ name: form.name, slug: form.slug, city: form.city, tagline: form.tagline });
     toast({ title: "Gym created!" });
     setShowForm(false);
     setForm({ name: "", slug: "", city: "", tagline: "" });
-    setRefresh(n => n + 1);
+    loadGyms();
   };
 
-  const toggleActive = (id: string, active: boolean) => {
-    updateGym(id, { isActive: !active });
+  const toggleActive = async (id: string, active: boolean) => {
+    await updateAdminGymStatusRequest(id, !active);
     toast({ title: active ? "Gym deactivated" : "Gym activated" });
-    setRefresh(n => n + 1);
+    loadGyms();
   };
 
   return (

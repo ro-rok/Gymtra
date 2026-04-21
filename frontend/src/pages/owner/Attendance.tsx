@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiCard } from "@/components/KpiCard";
 import { EmptyState } from "@/components/EmptyState";
@@ -7,16 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Check, X, Search, Users, CalendarCheck, UserMinus, Save, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { getMembers, markAttendance, getAttendance } from "@/lib/data-service";
+import { listMembersRequest } from "@/lib/member-api";
+import { createAttendanceQrTokenRequest, getAttendanceForDayRequest, markAttendanceRequest } from "@/lib/attendance-api";
 import { useToast } from "@/hooks/use-toast";
 
 const Attendance = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const gymId = user?.gymId || "1";
   const today = new Date().toISOString().slice(0, 10);
-  const allMembers = getMembers(gymId).filter(m => m.status !== "expired");
-  const existing = getAttendance(gymId, today);
+  const [allMembers, setAllMembers] = useState<any[]>([]);
+  const [existing, setExisting] = useState<any[]>([]);
+  const [qrToken, setQrToken] = useState<string | null>(null);
 
   const initial = useMemo(() => {
     const o: Record<string, "present" | "skipped"> = {};
@@ -27,6 +28,18 @@ const Attendance = () => {
   const [marks, setMarks] = useState<Record<string, "present" | "skipped" | undefined>>(initial);
   const [q, setQ] = useState("");
 
+  useEffect(() => {
+    Promise.all([listMembersRequest(), getAttendanceForDayRequest(today)])
+      .then(([members, attendance]) => {
+        setAllMembers(members.filter((m) => m.status !== "expired"));
+        setExisting(attendance.items);
+      })
+      .catch(() => {
+        setAllMembers([]);
+        setExisting([]);
+      });
+  }, [today]);
+
   const visible = allMembers.filter(m =>
     !q || m.name.toLowerCase().includes(q.toLowerCase()) || m.phone.includes(q)
   );
@@ -35,14 +48,14 @@ const Attendance = () => {
   const skippedCount = Object.values(marks).filter(v => v === "skipped").length;
   const unmarked = allMembers.length - presentCount - skippedCount;
 
-  const handleSave = () => {
-    let count = 0;
-    Object.entries(marks).forEach(([memberId, status]) => {
-      if (status) {
-        markAttendance({ memberId, gymId, date: today, status, markedBy: user?.id || "" });
-        count++;
-      }
-    });
+  const handleSave = async () => {
+    const payloads = Object.entries(marks).filter(([, status]) => Boolean(status));
+    await Promise.all(
+      payloads.map(([memberId, status]) =>
+        markAttendanceRequest({ memberId, date: today, status: status as "present" | "skipped" }),
+      ),
+    );
+    const count = payloads.length;
     toast({ title: "Attendance saved", description: `${count} member${count === 1 ? "" : "s"} updated for today.` });
   };
 
@@ -54,6 +67,15 @@ const Attendance = () => {
   };
 
   const todayLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
+  const handleGenerateQr = async () => {
+    try {
+      const data = await createAttendanceQrTokenRequest();
+      setQrToken(data.token);
+      toast({ title: "QR token generated", description: "Members can scan this token to check in." });
+    } catch {
+      toast({ title: "Could not generate QR token", description: "Please try again shortly." });
+    }
+  };
 
   return (
     <>
@@ -65,10 +87,12 @@ const Attendance = () => {
             <Button variant="outline" onClick={markAllPresent} className="gap-2">
               <Check className="w-4 h-4" /> Mark all present
             </Button>
+            <Button variant="outline" onClick={handleGenerateQr}>Generate QR</Button>
             <Button onClick={handleSave} className="gap-2"><Save className="w-4 h-4" /> Save</Button>
           </>
         }
       />
+      {qrToken && <div className="mb-4 rounded-xl border border-border bg-card p-3 text-xs break-all">{qrToken}</div>}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiCard label="Members" value={allMembers.length} icon={Users} accent="primary" />

@@ -3,29 +3,32 @@ import { PageHeader } from "@/components/PageHeader";
 import { KpiCard } from "@/components/KpiCard";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { getExpenses, addExpense } from "@/lib/data-service";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import type { ExpenseCategory } from "@/lib/types";
+import type { Expense, ExpenseCategory } from "@/lib/types";
+import { createExpenseRequest, listExpensesRequest } from "@/lib/expenses-api";
 
 const Expenses = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const gymId = user?.gymId || "1";
-  const [, setRefresh] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ category: "Misc" as ExpenseCategory, amount: "", date: new Date().toISOString().split("T")[0], recurring: false });
-  const allExpenses = getExpenses(gymId);
+  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
+  useEffect(() => {
+    listExpensesRequest().then(setAllExpenses).catch(() => setAllExpenses([]));
+  }, []);
   const total = allExpenses.reduce((s, e) => s + e.amount, 0);
 
-  const handleAdd = () => {
-    addExpense({ gymId, category: form.category, amount: Number(form.amount), date: form.date, recurring: form.recurring });
+  const handleAdd = async () => {
+    await createExpenseRequest({ category: form.category, amount: Number(form.amount), date: form.date, recurring: form.recurring });
+    const latest = await listExpensesRequest();
+    setAllExpenses(latest);
     toast({ title: "Expense added" });
     setShowForm(false);
     setForm({ category: "Misc", amount: "", date: new Date().toISOString().split("T")[0], recurring: false });
-    setRefresh(n => n + 1);
   };
 
   return (

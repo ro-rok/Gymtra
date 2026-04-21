@@ -4,32 +4,58 @@ import { KpiCard } from "@/components/KpiCard";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/contexts/AuthContext";
-import { getMembers, getMemberships, renewMembership } from "@/lib/data-service";
+import { listMembersRequest } from "@/lib/member-api";
+import { listMembershipsRequest, renewMembershipRequest } from "@/lib/membership-api";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CreditCard, IndianRupee, AlertCircle, CheckCircle2, Search, RefreshCw, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PlanType } from "@/lib/types";
+import type { MemberProfile, Membership } from "@/lib/types";
 
 const PLAN_PRICES: Record<PlanType, number> = { Monthly: 1500, Quarterly: 4000, "Half-Yearly": 7000 };
 const PLANS: PlanType[] = ["Monthly", "Quarterly", "Half-Yearly"];
 
 const Memberships = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
-  const gymId = user?.gymId || "1";
-  const [, setRefresh] = useState(0);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "pending_renewal" | "expired">("all");
-  const members = getMembers(gymId);
-  const memberships = getMemberships(gymId);
+  const [members, setMembers] = useState<MemberProfile[]>([]);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [renewingMemberId, setRenewingMemberId] = useState<string | null>(null);
 
-  const handleRenew = (memberId: string, plan: PlanType) => {
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [memberRows, membershipRows] = await Promise.all([listMembersRequest(), listMembershipsRequest()]);
+      setMembers(memberRows);
+      setMemberships(membershipRows);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load memberships");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadData();
+  }, []);
+
+  const handleRenew = async (memberId: string, plan: PlanType) => {
     const amount = PLAN_PRICES[plan];
-    renewMembership(memberId, plan, amount);
-    toast({ title: "Membership renewed 🎉", description: `${plan} plan · ₹${amount.toLocaleString("en-IN")}` });
-    setRefresh(n => n + 1);
+    setRenewingMemberId(memberId);
+    try {
+      await renewMembershipRequest({ memberId, plan, amount });
+      await loadData();
+      toast({ title: "Membership renewed", description: `${plan} plan · ₹${amount.toLocaleString("en-IN")}` });
+    } catch (err) {
+      toast({ title: "Renewal failed", description: err instanceof Error ? err.message : "Try again." });
+    } finally {
+      setRenewingMemberId(null);
+    }
   };
 
   const counts = {
@@ -45,9 +71,9 @@ const Memberships = () => {
 
   const dueSoonCount = members.filter(m => m.status === "pending_renewal" || m.status === "expired").length;
 
-  const visible = members
+  const visible = useMemo(() => members
     .filter(m => filter === "all" || m.status === filter)
-    .filter(m => !q || m.name.toLowerCase().includes(q.toLowerCase()) || m.phone.includes(q));
+    .filter(m => !q || m.name.toLowerCase().includes(q.toLowerCase()) || m.phone.includes(q)), [members, filter, q]);
 
   return (
     <>
@@ -94,7 +120,11 @@ const Memberships = () => {
         </div>
       )}
 
-      {visible.length === 0 ? (
+      {loading ? (
+        <div className="text-sm text-muted-foreground py-8">Loading memberships...</div>
+      ) : error ? (
+        <EmptyState icon={CreditCard} title="Could not load memberships" description={error} />
+      ) : visible.length === 0 ? (
         <EmptyState
           icon={CreditCard}
           title={q ? `No matches for "${q}"` : "Nothing here"}
@@ -155,6 +185,7 @@ const Memberships = () => {
                       size="sm"
                       variant={m.status === "active" ? "outline" : "default"}
                       onClick={() => handleRenew(m.id, currentPlan)}
+                      disabled={renewingMemberId === m.id}
                       className="gap-1.5 ml-1"
                     >
                       <RefreshCw className="w-3.5 h-3.5" /> Renew

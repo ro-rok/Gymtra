@@ -5,22 +5,43 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/contexts/AuthContext";
-import { getMembers } from "@/lib/data-service";
-import { useState } from "react";
+import { listMembersRequest } from "@/lib/member-api";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import type { MemberProfile } from "@/lib/types";
 
 const Members = () => {
   const { gymSlug } = useParams();
-  const { user } = useAuth();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "expired" | "pending_renewal">("all");
-  const allMembers = getMembers(user?.gymId || "1");
-  const members = allMembers.filter(m => {
+  const [allMembers, setAllMembers] = useState<MemberProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    listMembersRequest()
+      .then((rows) => {
+        if (!mounted) return;
+        setAllMembers(rows);
+        setError(null);
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        setError(err instanceof Error ? err.message : "Failed to load members");
+      })
+      .finally(() => mounted && setLoading(false));
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const members = useMemo(() => allMembers.filter(m => {
     const matchSearch = m.name.toLowerCase().includes(q.toLowerCase()) || m.phone.includes(q);
     const matchFilter = filter === "all" || m.status === filter;
     return matchSearch && matchFilter;
-  });
+  }), [allMembers, q, filter]);
 
   const counts = {
     all: allMembers.length,
@@ -58,7 +79,11 @@ const Members = () => {
         </div>
       </div>
 
-      {members.length === 0 ? (
+      {loading ? (
+        <div className="text-sm text-muted-foreground py-8">Loading members...</div>
+      ) : error ? (
+        <EmptyState icon={Users} title="Could not load members" description={error} />
+      ) : members.length === 0 ? (
         <EmptyState
           icon={Users}
           title={q ? `No members match "${q}"` : "No members yet"}

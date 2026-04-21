@@ -18,10 +18,16 @@ export interface Gym {
   name: string;
   logo: string;
   city: string;
+  members?: number;
   tagline: string;
   isActive: boolean;
+  seatCount?: number;
   ownerId?: string;
+  adminUserId?: string;
   createdAt: string;
+  brandColor?: string;
+  metaTitle?: string;
+  metaDescription?: string;
 }
 
 // ── Member ──

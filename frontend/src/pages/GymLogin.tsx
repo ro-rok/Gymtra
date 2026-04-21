@@ -3,10 +3,11 @@ import { ArrowLeft, Dumbbell, Crown, Users, User as UserIcon, Loader2 } from "lu
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { mockGyms } from "@/lib/mock-data";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useTenant } from "@/contexts/TenantContext";
+import { PageMeta } from "@/components/PageMeta";
 
 const demoAccounts = [
   { role: "Owner", email: "owner@ironparadise.com", password: "owner123", icon: Crown, color: "primary", desc: "Full operational control" },
@@ -17,27 +18,29 @@ const demoAccounts = [
 const GymLogin = () => {
   const { gymSlug } = useParams();
   const navigate = useNavigate();
-  const { login, user } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
+  const { gym, loading: tenantLoading, error: tenantError, invalidTenant } = useTenant();
   const { toast } = useToast();
-  const gym = mockGyms.find((g) => g.slug === gymSlug) || mockGyms[0];
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (user && user.gymSlug === gymSlug) {
-    const rolePath = user.role === "owner" ? "owner" : user.role === "trainer" ? "trainer" : "member";
-    navigate(`/${gymSlug}/${rolePath}`, { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (user && user.gymSlug === gymSlug) {
+      const rolePath = user.role === "owner" ? "owner" : user.role === "trainer" ? "trainer" : "member";
+      navigate(`/${gymSlug}/${rolePath}`, { replace: true });
+    }
+  }, [gymSlug, navigate, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!gymSlug) return;
     setLoading(true);
-    const result = await login(email, password);
+    const result = await login(email, password, gymSlug);
     setLoading(false);
     if (result.success) {
-      const stored = JSON.parse(localStorage.getItem("gymos_auth_user") || "{}");
-      const rolePath = stored.role === "owner" ? "owner" : stored.role === "trainer" ? "trainer" : "member";
+      const role = result.user?.role;
+      const rolePath = role === "owner" ? "owner" : role === "trainer" ? "trainer" : "member";
       navigate(`/${gymSlug}/${rolePath}`);
     } else {
       toast({ title: "Login failed", description: result.error, variant: "destructive" });
@@ -46,8 +49,42 @@ const GymLogin = () => {
 
   const useDemo = (e: string, p: string) => { setEmail(e); setPassword(p); };
 
+  if (tenantLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <PageMeta title="Gym Login | GymOS" canonicalPath={`/${gymSlug || ""}`} noindex />
+        <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Loading gym details...
+        </div>
+      </div>
+    );
+  }
+
+  if (invalidTenant || !gym) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <PageMeta title="Gym Not Found | GymOS" canonicalPath={`/${gymSlug || ""}`} noindex />
+        <div className="w-full max-w-md rounded-2xl border bg-card p-6 text-card-foreground">
+          <h1 className="text-xl font-semibold">Invalid gym link</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            {tenantError || "We could not find this gym. Please verify the URL and try again."}
+          </p>
+          <Link to="/" className="inline-flex mt-4 text-sm text-primary hover:underline">
+            Back to gym directory
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+      <PageMeta
+        title={gym.metaTitle || `${gym.name} | Gym Login`}
+        description={gym.metaDescription || `Sign in to ${gym.name} on GymOS.`}
+        canonicalPath={`/${gym.slug}`}
+      />
       {/* Brand panel */}
       <div className="lg:w-1/2 relative overflow-hidden gradient-hero text-secondary-foreground p-8 md:p-12 lg:p-16 flex flex-col justify-between min-h-[40vh] lg:min-h-screen">
         <div className="absolute inset-0 gradient-mesh opacity-50" />
@@ -97,7 +134,7 @@ const GymLogin = () => {
               <Input id="password" type="password" placeholder="••••••••" className="mt-1.5 h-11"
                 value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
-            <Button type="submit" className="w-full h-11 font-semibold gap-2" disabled={loading}>
+            <Button type="submit" className="w-full h-11 font-semibold gap-2" disabled={loading || authLoading}>
               {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</> : "Sign in"}
             </Button>
           </form>

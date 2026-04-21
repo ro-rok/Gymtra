@@ -1,7 +1,9 @@
-import { Outlet, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { Outlet } from "react-router-dom";
 import { Home, Salad, TrendingUp, CreditCard, Zap, User } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { mockGyms } from "@/lib/mock-data";
+import { useTenant } from "@/contexts/TenantContext";
+import { usePushRegistration } from "@/hooks/usePushRegistration";
 
 const nav = [
   { to: "/:gymSlug/member", label: "Today", icon: Home },
@@ -13,8 +15,12 @@ const nav = [
 ];
 
 const MemberLayout = () => {
-  const { gymSlug } = useParams();
-  const gym = mockGyms.find((g) => g.slug === gymSlug) || mockGyms[0];
+  const { gym, loading } = useTenant();
+  const { registerPushSubscription } = usePushRegistration();
+  useEffect(() => {
+    registerPushSubscription().catch(() => undefined);
+  }, [registerPushSubscription]);
+  if (loading || !gym) return null;
   return (
     <AppShell brand={{ name: gym.name, logo: gym.logo, role: "Member" }} nav={nav}>
       <Outlet />

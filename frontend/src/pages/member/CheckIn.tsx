@@ -1,30 +1,46 @@
 import { Zap, MapPin, CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { markAttendance, getMemberAttendance } from "@/lib/data-service";
+import { getMemberDashboardAttendanceTasksRequest, memberSelfCheckInRequest, verifyAttendanceQrRequest } from "@/lib/attendance-api";
 import { useToast } from "@/hooks/use-toast";
 import { Confetti } from "@/components/Confetti";
 
 const CheckIn = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const memberId = user?.id === "u-member-1" ? "m1" : user?.id || "";
-  const gymId = user?.gymId || "1";
   const today = new Date().toISOString().split("T")[0];
-  const attendance = getMemberAttendance(memberId);
-  const alreadyCheckedIn = attendance.some(a => a.date === today && a.status === "present");
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [qrToken, setQrToken] = useState("");
+  const alreadyCheckedIn = attendance.some((a) => a.date === today && a.status === "present");
   const [done, setDone] = useState(alreadyCheckedIn);
   const [celebrate, setCelebrate] = useState(false);
 
-  const handleCheckIn = () => {
-    markAttendance({ memberId, gymId, date: today, status: "present", markedBy: user?.id || "" });
+  useEffect(() => {
+    getMemberDashboardAttendanceTasksRequest()
+      .then((data) => {
+        setAttendance(data.attendance);
+        if (data.attendance.some((a) => a.date === today && a.status === "present")) setDone(true);
+      })
+      .catch(() => undefined);
+  }, [today]);
+
+  const handleCheckIn = async () => {
+    await memberSelfCheckInRequest(today);
     setDone(true);
     setCelebrate(true);
     setTimeout(() => setCelebrate(false), 100);
     toast({ title: "Checked in! 💪", description: "Have a great session." });
+  };
+
+  const handleQrCheckIn = async () => {
+    if (!qrToken.trim()) return;
+    await verifyAttendanceQrRequest(qrToken.trim());
+    setDone(true);
+    toast({ title: "QR check-in successful", description: "Attendance marked from gym QR." });
   };
 
   const now = new Date();
@@ -61,6 +77,13 @@ const CheckIn = () => {
       </div>
 
       <h2 className="text-lg font-display font-semibold mt-8 mb-3">This month</h2>
+      <div className="rounded-xl border border-border bg-card p-4 mb-4">
+        <div className="text-sm font-medium mb-2">QR check-in</div>
+        <div className="flex gap-2">
+          <Input value={qrToken} onChange={(e) => setQrToken(e.target.value)} placeholder="Paste scanned token" />
+          <Button variant="outline" onClick={handleQrCheckIn}>Submit QR</Button>
+        </div>
+      </div>
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="grid grid-cols-7 gap-2 text-xs">
           {days.map((d) => (

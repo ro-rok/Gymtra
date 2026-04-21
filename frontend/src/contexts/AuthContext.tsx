@@ -1,68 +1,67 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import type { AuthUser, Role } from "@/lib/types";
+import { ApiError } from "@/lib/api-client";
+import { loginRequest, logoutRequest, meRequest } from "@/lib/auth-api";
 
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  login: (email: string, password: string, gymSlug?: string) => Promise<{ success: boolean; error?: string; user?: AuthUser }>;
+  logout: () => Promise<void>;
   isRole: (role: Role) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const STORAGE_KEY = "gymos_auth_user";
-
-// Demo accounts — swap this with real API calls later
-const DEMO_ACCOUNTS: Record<string, { password: string; user: AuthUser }> = {
-  "admin@gymos.app": {
-    password: "admin123",
-    user: { id: "u-admin", email: "admin@gymos.app", name: "Platform Admin", role: "super_admin", avatar: "PA" },
-  },
-  "owner@ironparadise.com": {
-    password: "owner123",
-    user: { id: "u-owner-1", email: "owner@ironparadise.com", name: "Raj Malhotra", role: "owner", gymId: "1", gymSlug: "iron-paradise", avatar: "RM" },
-  },
-  "trainer@ironparadise.com": {
-    password: "trainer123",
-    user: { id: "u-trainer-1", email: "trainer@ironparadise.com", name: "Rahul Mehra", role: "trainer", gymId: "1", gymSlug: "iron-paradise", avatar: "RM" },
-  },
-  "aarav@email.com": {
-    password: "member123",
-    user: { id: "u-member-1", email: "aarav@email.com", name: "Aarav Sharma", role: "member", gymId: "1", gymSlug: "iron-paradise", avatar: "AS" },
-  },
-  // Fit Republic gym
-  "owner@fitrepublic.com": {
-    password: "owner123",
-    user: { id: "u-owner-2", email: "owner@fitrepublic.com", name: "Anita Desai", role: "owner", gymId: "2", gymSlug: "fit-republic", avatar: "AD" },
-  },
-};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try { setUser(JSON.parse(stored)); } catch { /* ignore */ }
-    }
-    setLoading(false);
+    let mounted = true;
+    const hydrateSession = async () => {
+      try {
+        const authUser = await meRequest();
+        if (mounted) {
+          setUser(authUser);
+        }
+      } catch {
+        if (mounted) {
+          setUser(null);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    hydrateSession();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const account = DEMO_ACCOUNTS[email.toLowerCase().trim()];
-    if (!account || account.password !== password) {
-      return { success: false, error: "Invalid email or password" };
+  const login = useCallback(async (email: string, password: string, gymSlug?: string) => {
+    try {
+      const response = await loginRequest({ email, password, gymSlug });
+      setUser(response.user);
+      return { success: true, user: response.user };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return { success: false, error: error.message };
+      }
+      return { success: false, error: "Unable to sign in right now. Please try again." };
     }
-    setUser(account.user);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(account.user));
-    return { success: true };
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await logoutRequest();
+    } catch {
+      // Backends may not expose logout while cookie expires naturally.
+    }
     setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
   }, []);
 
   const isRole = useCallback((role: Role) => user?.role === role, [user]);

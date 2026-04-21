@@ -5,47 +5,67 @@ import { EmptyState } from "@/components/EmptyState";
 import { WeightChart, WaterChart } from "@/components/Charts";
 import { TrendingDown, Activity, Droplets, Plus, BarChart3 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getProgress, addProgress, getMemberAttendance, getDailyTaskHistory } from "@/lib/data-service";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { listProgressLogsRequest, addProgressLogRequest, getProgressSeriesRequest } from "@/lib/progress-api";
+import { getMemberDashboardAttendanceTasksRequest } from "@/lib/attendance-api";
+import type { ProgressLog } from "@/lib/types";
 
 const Progress = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const memberId = user?.id === "u-member-1" ? "m1" : user?.id || "";
-  const gymId = user?.gymId || "1";
-  const [, setRefresh] = useState(0);
+  const [progress, setProgress] = useState<ProgressLog[]>([]);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [waterChartData, setWaterChartData] = useState<Array<{ day: string; liters: number }>>([]);
+  const [seriesDelta, setSeriesDelta] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ weight: "", bodyFat: "", notes: "" });
 
-  const progress = getProgress(memberId);
-  const attendance = getMemberAttendance(memberId);
-  const waterHistory = getDailyTaskHistory(memberId, 7);
-  const waterChartData = waterHistory.map(t => ({
-    day: new Date(t.date).toLocaleDateString("en-US", { weekday: "short" }),
-    liters: t.waterLiters || 0,
-  }));
-  const avgWater = waterHistory.reduce((s, t) => s + (t.waterLiters || 0), 0) / Math.max(1, waterHistory.length);
+  useEffect(() => {
+    Promise.all([
+      listProgressLogsRequest(),
+      getProgressSeriesRequest(),
+      getMemberDashboardAttendanceTasksRequest(),
+    ])
+      .then(([logs, series, dashboard]) => {
+        setProgress(logs.items);
+        setSeriesDelta(series.deltaWeight || 0);
+        setAttendance(dashboard.attendance || []);
+        const recent = (dashboard.attendance || []).slice(0, 7).map((row: any) => ({
+          day: new Date(row.date).toLocaleDateString("en-US", { weekday: "short" }),
+          liters: 0,
+        }));
+        setWaterChartData(recent);
+      })
+      .catch(() => {
+        setProgress([]);
+        setAttendance([]);
+        setWaterChartData([]);
+        setSeriesDelta(0);
+      });
+  }, []);
+  const avgWater = waterChartData.reduce((s, t) => s + (t.liters || 0), 0) / Math.max(1, waterChartData.length);
 
   const chartData = progress.map(p => ({ date: p.date.slice(5), weight: p.weightKg }));
   const firstWeight = progress[0]?.weightKg || 0;
   const lastWeight = progress[progress.length - 1]?.weightKg || 0;
-  const diff = firstWeight ? lastWeight - firstWeight : 0;
+  const diff = firstWeight ? lastWeight - firstWeight : seriesDelta;
 
-  const handleAdd = () => {
-    addProgress({
-      memberId, gymId, date: new Date().toISOString().split("T")[0],
+  const handleAdd = async () => {
+    await addProgressLogRequest({
+      date: new Date().toISOString().split("T")[0],
       weightKg: Number(form.weight),
       bodyFatPct: form.bodyFat ? Number(form.bodyFat) : undefined,
       notes: form.notes || undefined,
     });
+    const latest = await listProgressLogsRequest();
+    setProgress(latest.items);
     toast({ title: "Progress logged 💪" });
     setShowForm(false);
     setForm({ weight: "", bodyFat: "", notes: "" });
-    setRefresh(n => n + 1);
   };
 
   return (

@@ -3,9 +3,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { mockGyms } from "@/lib/mock-data";
 import { Palette, IndianRupee, Bell, Save, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useTenant } from "@/contexts/TenantContext";
 
 const Section = ({ icon: Icon, title, hint, children }: any) => (
   <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -32,8 +32,8 @@ const Field = ({ label, hint, children }: any) => (
 
 const Settings = () => {
   const { gymSlug } = useParams();
+  const { gym } = useTenant();
   const { toast } = useToast();
-  const gym = mockGyms.find((g) => g.slug === gymSlug) || mockGyms[0];
   const save = (what: string) => () => toast({ title: `${what} saved`, description: "Changes are live for your gym." });
 
   return (
@@ -42,9 +42,9 @@ const Settings = () => {
 
       <div className="grid lg:grid-cols-2 gap-5 max-w-5xl">
         <Section icon={Building2} title="Brand identity" hint="What members see across the app.">
-          <Field label="Display name"><Input defaultValue={gym.name} /></Field>
-          <Field label="Tagline"><Input defaultValue={gym.tagline} /></Field>
-          <Field label="Logo emoji / URL" hint="An emoji works great. Image upload coming soon."><Input defaultValue={gym.logo} /></Field>
+          <Field label="Display name"><Input defaultValue={gym?.name || gymSlug} /></Field>
+          <Field label="Tagline"><Input defaultValue={gym?.tagline || ""} /></Field>
+          <Field label="Logo emoji / URL" hint="An emoji works great. Image upload coming soon."><Input defaultValue={gym?.logo || "🏋️"} /></Field>
           <Field label="Primary color (HSL)" hint='Tailwind format, e.g. "88 86% 52%".'><Input defaultValue="88 86% 52%" /></Field>
           <Button onClick={save("Branding")} className="gap-2"><Save className="w-4 h-4" /> Save branding</Button>
         </Section>

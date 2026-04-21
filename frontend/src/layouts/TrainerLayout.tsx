@@ -1,7 +1,7 @@
-import { Outlet, useParams } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { LayoutDashboard, Users, Salad, CalendarCheck } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { mockGyms } from "@/lib/mock-data";
+import { useTenant } from "@/contexts/TenantContext";
 
 const nav = [
   { to: "/:gymSlug/trainer", label: "Dashboard", icon: LayoutDashboard },
@@ -11,8 +11,8 @@ const nav = [
 ];
 
 const TrainerLayout = () => {
-  const { gymSlug } = useParams();
-  const gym = mockGyms.find((g) => g.slug === gymSlug) || mockGyms[0];
+  const { gym, loading } = useTenant();
+  if (loading || !gym) return null;
   return (
     <AppShell brand={{ name: gym.name, logo: gym.logo, role: "Trainer" }} nav={nav}>
       <Outlet />
