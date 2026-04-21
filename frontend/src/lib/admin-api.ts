@@ -47,6 +47,10 @@ export const createAdminGymRequest = async (payload: {
   slug: string;
   city: string;
   tagline?: string;
+  ownerName: string;
+  ownerEmail: string;
+  ownerPhone?: string;
+  ownerPassword: string;
 }) => {
   const row = await apiPost<AdminGym>("/api/v1/admin/gyms", payload);
   return toGym(row);

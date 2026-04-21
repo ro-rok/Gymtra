@@ -1,8 +1,8 @@
 from functools import lru_cache
-from typing import List
+from typing import Annotated, List
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     auth_cookie_samesite: str = "lax"
     auth_cookie_domain: str | None = None
 
-    frontend_origins: List[str] = ["http://localhost:8080", "http://127.0.0.1:8080"]
+    frontend_origins: Annotated[List[str], NoDecode] = ["http://localhost:8080", "http://127.0.0.1:8080"]
     public_base_url: str = "http://localhost:8080"
     qr_token_secret: str = "change-me-qr"
     qr_token_ttl_seconds: int = 300

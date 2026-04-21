@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class GymCreatePayload(BaseModel):
@@ -9,6 +9,10 @@ class GymCreatePayload(BaseModel):
     logo: str | None = None
     seatCount: int = Field(default=5, ge=1, le=10000)
     ownerUserId: str | None = None
+    ownerName: str | None = Field(default=None, min_length=1, max_length=120)
+    ownerEmail: EmailStr | None = None
+    ownerPhone: str | None = Field(default=None, min_length=5, max_length=32)
+    ownerPassword: str | None = Field(default=None, min_length=6, max_length=128)
     adminUserId: str | None = None
     isActive: bool = True
     brandColor: str | None = None

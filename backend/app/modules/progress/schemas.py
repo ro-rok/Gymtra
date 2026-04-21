@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as dt_date
 
 from pydantic import BaseModel, Field
 
@@ -8,7 +8,7 @@ class ProgressLogCreateRequest(BaseModel):
     bodyFatPct: float | None = Field(default=None, ge=0, le=100)
     measurements: dict[str, float] | None = None
     notes: str | None = None
-    date: date | None = None
+    date: dt_date | None = None
 
 
 class ProgressLogRecord(BaseModel):

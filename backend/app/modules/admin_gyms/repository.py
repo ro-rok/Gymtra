@@ -17,6 +17,9 @@ class AdminGymsRepository:
     def get_by_slug(self, slug: str) -> dict | None:
         return self.db.gyms.find_one({"slug": slug})
 
+    def get_user_by_email(self, email: str) -> dict | None:
+        return self.db.users.find_one({"email": email})
+
     def create_gym(self, payload: dict) -> dict:
         now = datetime.now(timezone.utc)
         doc = {
@@ -34,6 +37,22 @@ class AdminGymsRepository:
             "updated_at": now,
         }
         self.db.gyms.insert_one(doc)
+        return doc
+
+    def create_owner_user(self, payload: dict) -> dict:
+        now = datetime.now(timezone.utc)
+        doc = {
+            "email": payload["email"],
+            "name": payload["name"],
+            "phone": payload.get("phone"),
+            "password_hash": payload["password_hash"],
+            "role": "owner",
+            "gym_id": payload["gym_id"],
+            "status": "active",
+            "created_at": now,
+            "updated_at": now,
+        }
+        self.db.users.insert_one(doc)
         return doc
 
     def update_gym(self, gym_id: ObjectId, update_data: dict) -> dict | None:

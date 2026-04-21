@@ -11,7 +11,16 @@ import { useToast } from "@/hooks/use-toast";
 const AdminGyms = () => {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", slug: "", city: "", tagline: "" });
+  const [form, setForm] = useState({
+    name: "",
+    slug: "",
+    city: "",
+    tagline: "",
+    ownerName: "",
+    ownerEmail: "",
+    ownerPhone: "",
+    ownerPassword: "",
+  });
   const [gyms, setGyms] = useState<any[]>([]);
 
   const loadGyms = () =>
@@ -24,10 +33,28 @@ const AdminGyms = () => {
   }, []);
 
   const handleAdd = async () => {
-    await createAdminGymRequest({ name: form.name, slug: form.slug, city: form.city, tagline: form.tagline });
+    await createAdminGymRequest({
+      name: form.name,
+      slug: form.slug,
+      city: form.city,
+      tagline: form.tagline,
+      ownerName: form.ownerName,
+      ownerEmail: form.ownerEmail,
+      ownerPhone: form.ownerPhone,
+      ownerPassword: form.ownerPassword,
+    });
     toast({ title: "Gym created!" });
     setShowForm(false);
-    setForm({ name: "", slug: "", city: "", tagline: "" });
+    setForm({
+      name: "",
+      slug: "",
+      city: "",
+      tagline: "",
+      ownerName: "",
+      ownerEmail: "",
+      ownerPhone: "",
+      ownerPassword: "",
+    });
     loadGyms();
   };
 
@@ -47,7 +74,11 @@ const AdminGyms = () => {
           <div><Label>Name</Label><Input className="mt-1" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
           <div><Label>Slug</Label><Input className="mt-1" value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} placeholder="my-gym" /></div>
           <div><Label>City</Label><Input className="mt-1" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
-          <div className="flex items-end"><Button onClick={handleAdd} disabled={!form.name || !form.slug}>Create</Button></div>
+          <div><Label>Owner name</Label><Input className="mt-1" value={form.ownerName} onChange={e => setForm({ ...form, ownerName: e.target.value })} /></div>
+          <div><Label>Owner email</Label><Input type="email" className="mt-1" value={form.ownerEmail} onChange={e => setForm({ ...form, ownerEmail: e.target.value })} /></div>
+          <div><Label>Owner phone</Label><Input className="mt-1" value={form.ownerPhone} onChange={e => setForm({ ...form, ownerPhone: e.target.value })} /></div>
+          <div><Label>Owner password</Label><Input type="password" className="mt-1" value={form.ownerPassword} onChange={e => setForm({ ...form, ownerPassword: e.target.value })} /></div>
+          <div className="flex items-end"><Button onClick={handleAdd} disabled={!form.name || !form.slug || !form.ownerName || !form.ownerEmail || !form.ownerPassword}>Create</Button></div>
         </div>
       )}
 

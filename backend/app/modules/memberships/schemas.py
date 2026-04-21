@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as dt_date
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -11,13 +11,13 @@ class MembershipCreateRequest(BaseModel):
     memberId: str
     plan: MembershipPlan
     amount: float = Field(gt=0)
-    startDate: date | None = None
+    startDate: dt_date | None = None
 
 
 class MembershipRenewRequest(BaseModel):
     plan: MembershipPlan
     amount: float = Field(gt=0)
-    startDate: date | None = None
+    startDate: dt_date | None = None
 
 
 class MembershipResponse(BaseModel):

@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from bson import ObjectId
 
+from app.core.security import hash_password
 from app.modules.admin_gyms.repository import AdminGymsRepository
 from app.modules.admin_gyms.schemas import GymCreatePayload, GymResponse, GymUpdatePayload
 
@@ -35,6 +36,16 @@ class AdminGymsService:
     def create_gym(self, payload: GymCreatePayload) -> GymResponse:
         if self.repo.get_by_slug(payload.slug):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Gym slug already exists")
+        owner_user_id = ObjectId(payload.ownerUserId) if payload.ownerUserId and ObjectId.is_valid(payload.ownerUserId) else None
+        if not owner_user_id:
+            has_owner_signup = any([payload.ownerName, payload.ownerEmail, payload.ownerPhone, payload.ownerPassword])
+            if has_owner_signup and not all([payload.ownerName, payload.ownerEmail, payload.ownerPassword]):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Owner name, email, and password are required when creating owner signup",
+                )
+            if payload.ownerEmail and self.repo.get_user_by_email(str(payload.ownerEmail).lower()):
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Owner email already exists")
         gym = self.repo.create_gym(
             {
                 "slug": payload.slug,
@@ -44,10 +55,21 @@ class AdminGymsService:
                 "logo": payload.logo,
                 "is_active": payload.isActive,
                 "seat_count": payload.seatCount,
-                "owner_user_id": ObjectId(payload.ownerUserId) if payload.ownerUserId and ObjectId.is_valid(payload.ownerUserId) else None,
+                "owner_user_id": owner_user_id,
                 "admin_user_id": ObjectId(payload.adminUserId) if payload.adminUserId and ObjectId.is_valid(payload.adminUserId) else None,
             }
         )
+        if not owner_user_id and payload.ownerEmail and payload.ownerName and payload.ownerPassword:
+            owner_doc = self.repo.create_owner_user(
+                {
+                    "email": str(payload.ownerEmail).lower(),
+                    "name": payload.ownerName,
+                    "phone": payload.ownerPhone,
+                    "password_hash": hash_password(payload.ownerPassword),
+                    "gym_id": gym["_id"],
+                }
+            )
+            gym = self.repo.update_gym(gym["_id"], {"owner_user_id": owner_doc["_id"]}) or gym
         self.repo.upsert_branding(
             gym["_id"],
             {

@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date as dt_date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
@@ -28,14 +28,14 @@ class MemberCreateRequest(MemberProfileBase):
     email: EmailStr
     phone: str = Field(min_length=5, max_length=32)
     password: str = Field(min_length=6, max_length=128)
-    joinDate: date
+    joinDate: dt_date
 
 
 class MemberUpdateRequest(MemberProfileBase):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     phone: str | None = Field(default=None, min_length=5, max_length=32)
     email: EmailStr | None = None
-    joinDate: date | None = None
+    joinDate: dt_date | None = None
     status: MemberStatus | None = None
 
 

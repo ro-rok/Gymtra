@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as dt_date
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -8,12 +8,12 @@ AttendanceStatus = Literal["present", "skipped"]
 
 class AttendanceMarkPayload(BaseModel):
     memberId: str
-    date: date
+    date: dt_date
     status: AttendanceStatus
 
 
 class MemberCheckInPayload(BaseModel):
-    date: date | None = None
+    date: dt_date | None = None
 
 
 class QrVerifyPayload(BaseModel):
@@ -21,7 +21,7 @@ class QrVerifyPayload(BaseModel):
 
 
 class DailyTaskUpsertPayload(BaseModel):
-    date: date
+    date: dt_date
     workout: bool
     meal: bool
     water: bool
