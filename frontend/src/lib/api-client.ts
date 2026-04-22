@@ -1,3 +1,5 @@
+import { handleDemoRequest, isDemoPath } from "@/lib/demo-adapter";
+
 const resolveDefaultBaseUrl = () => {
   if (typeof window === "undefined") return "http://localhost:8000";
   const protocol = window.location.protocol === "https:" ? "https:" : "http:";
@@ -90,7 +92,11 @@ const attemptRefresh = async () => {
 
 export const apiRequest = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
   const { method = "GET", body, headers, query, signal, tenantSlug } = options;
-  const url = `${API_BASE_URL}${path}${toQueryString(query)}`;
+  const pathWithQuery = `${path}${toQueryString(query)}`;
+  if (isDemoPath()) {
+    return handleDemoRequest<T>(pathWithQuery, method, body);
+  }
+  const url = `${API_BASE_URL}${pathWithQuery}`;
 
   const response = await fetch(url, {
     method,

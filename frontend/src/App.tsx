@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { TenantProvider } from "@/contexts/TenantContext";
+import { OwnerOnboardingGate } from "@/components/OwnerOnboardingGate";
+import { PageTransition } from "@/components/PageTransition";
 import NotFound from "./pages/NotFound";
 
 import Landing from "./pages/Landing";
@@ -31,6 +33,8 @@ import OwnerPayroll from "./pages/owner/Payroll";
 import OwnerReminders from "./pages/owner/Reminders";
 import OwnerStaff from "./pages/owner/Staff";
 import OwnerSettings from "./pages/owner/Settings";
+import OwnerOnboarding from "./pages/owner/Onboarding";
+import OwnerDemo from "./pages/demo/OwnerDemo";
 
 import TrainerLayout from "./layouts/TrainerLayout";
 import TrainerDashboard from "./pages/trainer/Dashboard";
@@ -52,9 +56,11 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
+          <PageTransition>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/demo/:gymSlug" element={<OwnerDemo />} />
 
             {/* Super Admin — protected */}
             <Route path="/admin" element={
@@ -77,7 +83,9 @@ const App = () => (
             <Route path="/:gymSlug/owner" element={
               <TenantProvider>
                 <ProtectedRoute allowedRoles={["owner"]} gymScoped>
-                  <OwnerLayout />
+                  <OwnerOnboardingGate>
+                    <OwnerLayout />
+                  </OwnerOnboardingGate>
                 </ProtectedRoute>
               </TenantProvider>
             }>
@@ -94,6 +102,14 @@ const App = () => (
               <Route path="staff" element={<OwnerStaff />} />
               <Route path="settings" element={<OwnerSettings />} />
             </Route>
+
+            <Route path="/:gymSlug/onboarding" element={
+              <TenantProvider>
+                <ProtectedRoute allowedRoles={["owner"]} gymScoped>
+                  <OwnerOnboarding />
+                </ProtectedRoute>
+              </TenantProvider>
+            } />
 
             {/* Trainer — protected */}
             <Route path="/:gymSlug/trainer" element={
@@ -125,8 +141,9 @@ const App = () => (
               <Route path="profile" element={<MemberProfilePage />} />
             </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </PageTransition>
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>

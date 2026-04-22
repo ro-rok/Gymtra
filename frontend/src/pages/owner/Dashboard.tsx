@@ -12,6 +12,7 @@ import { listMembersRequest, memberDashboardSummaryRequest } from "@/lib/member-
 import { listMembershipsRequest } from "@/lib/membership-api";
 import { useEffect, useState } from "react";
 import { listExpensesRequest } from "@/lib/expenses-api";
+import { getLastAction, setLastAction } from "@/lib/onboarding-state";
 
 const waLink = (phone: string, msg: string) =>
   `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(msg)}`;
@@ -36,6 +37,30 @@ const OwnerDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [continuityHint, setContinuityHint] = useState<string | null>(null);
+  const [postCompletionMomentum, setPostCompletionMomentum] = useState(false);
+
+  useEffect(() => {
+    if (!gymSlug) return;
+    const key = `onboarding-just-completed:${gymSlug}`;
+    const hint = window.sessionStorage.getItem(key);
+    if (hint === "first-member") {
+      setContinuityHint("You're set. Next: send reminders and monitor today's check-ins.");
+      window.sessionStorage.removeItem(key);
+    }
+  }, [gymSlug]);
+
+  useEffect(() => {
+    if (!gymSlug) return;
+    const lastAction = getLastAction(gymSlug);
+    if (lastAction === "onboarding_complete") {
+      setPostCompletionMomentum(true);
+      window.setTimeout(() => {
+        const actionEl = document.querySelector("[data-momentum-add-member='true']");
+        actionEl?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 220);
+    }
+  }, [gymSlug]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -87,6 +112,7 @@ const OwnerDashboard = () => {
   const renewalsDue = summary?.pendingRenewal ?? expiring.length;
   const unpaidCount = summary?.unpaid ?? unpaidDues.length;
   const urgentCount = urgentRenewals.length + urgentAttendance.length + unpaidDues.length;
+  const isFirstTime = members.length === 0 || todayAttendance.length === 0;
 
   const recentActivity = [
     ...todayAttendance.slice(0, 3).map((att) => {
@@ -124,16 +150,50 @@ const OwnerDashboard = () => {
               <Button variant="outline" className="gap-2"><Bell className="w-4 h-4" /> Reminders</Button>
             </Link>
             <Link to={`/${gymSlug}/owner/members/new`}>
-              <Button className="gap-2"><Plus className="w-4 h-4" /> Add Member</Button>
+              <Button
+                data-momentum-add-member="true"
+                className={`gap-2 ${postCompletionMomentum ? "animate-pulse ring-2 ring-primary/30" : ""}`}
+                onClick={() => {
+                  if (gymSlug) setLastAction(gymSlug, "added_member");
+                  setPostCompletionMomentum(false);
+                }}
+              >
+                <Plus className="w-4 h-4" /> Add Member
+              </Button>
             </Link>
           </>
         }
       />
 
       <div className="md:hidden grid grid-cols-2 gap-2 mb-6">
-        <Link to={`/${gymSlug}/owner/members/new`}><Button className="w-full h-10 text-xs">Add member</Button></Link>
+        <Link to={`/${gymSlug}/owner/members/new`}>
+          <Button
+            data-momentum-add-member="true"
+            className={`w-full h-10 text-xs ${postCompletionMomentum ? "animate-pulse ring-2 ring-primary/30" : ""}`}
+            onClick={() => {
+              if (gymSlug) setLastAction(gymSlug, "added_member");
+              setPostCompletionMomentum(false);
+            }}
+          >
+            Add member
+          </Button>
+        </Link>
         <Link to={`/${gymSlug}/owner/reminders`}><Button variant="outline" className="w-full h-10 text-xs">Send reminders</Button></Link>
       </div>
+
+      {continuityHint ? (
+        <div className="mb-6 rounded-2xl border border-emerald-500/35 bg-emerald-500/10 p-4 animate-in fade-in-0 slide-in-from-bottom-1">
+          <div className="text-sm font-medium text-emerald-600">Welcome live</div>
+          <div className="mt-1 text-sm text-muted-foreground">{continuityHint}</div>
+        </div>
+      ) : null}
+
+      {postCompletionMomentum ? (
+        <div className="mb-6 rounded-2xl border border-primary/35 bg-primary/10 p-4 animate-in fade-in-0">
+          <div className="text-sm font-medium text-primary">Start by adding 2-3 members</div>
+          <div className="mt-1 text-sm text-muted-foreground">This helps Gymtra surface trends and reminders right away.</div>
+        </div>
+      ) : null}
 
       {hasError && !isLoading && (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 mb-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
@@ -142,7 +202,7 @@ const OwnerDashboard = () => {
           </div>
           <div className="flex-1">
             <div className="font-semibold text-sm">Unable to load dashboard data</div>
-            <div className="text-xs text-muted-foreground">Please retry to fetch the latest members, renewals, and attendance.</div>
+            <div className="text-xs text-muted-foreground">Retry to load members, renewals, and attendance.</div>
           </div>
           <Button size="sm" variant="outline" className="gap-1.5 w-full sm:w-auto" onClick={() => setReloadKey((k) => k + 1)}>
             Retry <ArrowUpRight className="w-3.5 h-3.5" />
@@ -161,8 +221,27 @@ const OwnerDashboard = () => {
         </div>
       )}
 
+      {!isLoading && isFirstTime && (
+        <SectionCard title="Start here" description="Complete these quick actions to activate Gymtra." className="mb-6">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Link to={`/${gymSlug}/owner/members/new`} className="rounded-xl border p-4 hover:bg-muted/30 transition-colors">
+              <div className="font-medium text-sm">1. Add your first member</div>
+              <div className="text-xs text-muted-foreground mt-1">Add one member to begin.</div>
+            </Link>
+            <Link to={`/${gymSlug}/owner/settings`} className="rounded-xl border p-4 hover:bg-muted/30 transition-colors">
+              <div className="font-medium text-sm">2. Set pricing</div>
+              <div className="text-xs text-muted-foreground mt-1">Set monthly and quarterly plans.</div>
+            </Link>
+            <Link to={`/${gymSlug}/owner/attendance`} className="rounded-xl border p-4 hover:bg-muted/30 transition-colors">
+              <div className="font-medium text-sm">3. Try a check-in</div>
+              <div className="text-xs text-muted-foreground mt-1">See who missed check-in today.</div>
+            </Link>
+          </div>
+        </SectionCard>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-6">
-        <SectionCard title="What needs attention" description="Handle urgent queues first, then follow-up items" className="lg:col-span-2">
+        <SectionCard title="What needs attention" description="Handle urgent queues first, then normal follow-up" className="lg:col-span-2">
           {isLoading ? (
             <SectionCardSkeletonRows rows={4} rowClassName="h-14" />
           ) : (
@@ -176,8 +255,8 @@ const OwnerDashboard = () => {
                   <EmptyState
                     icon={Users}
                     title="No urgent renewals right now"
-                    description="Membership expiries are under control."
-                    secondaryHint="Check normal follow-ups below to stay ahead."
+                    description="Renewals are under control."
+                    secondaryHint="Check normal follow-up next to stay ahead."
                     variant="embedded"
                     className="border-0 bg-transparent"
                   />
@@ -213,7 +292,7 @@ const OwnerDashboard = () => {
                   <EmptyState
                     icon={CalendarCheck}
                     title="Attendance is on track"
-                    description="No urgent no-show follow-up right now."
+                    description="No urgent attendance follow-up right now."
                     variant="embedded"
                     className="border-0 bg-transparent"
                   />
@@ -244,7 +323,7 @@ const OwnerDashboard = () => {
                   <EmptyState
                     icon={Receipt}
                     title="No unpaid dues pending"
-                    description="All tracked memberships are financially clear."
+                    description="Tracked memberships are financially clear."
                     variant="embedded"
                     className="border-0 bg-transparent"
                   />
@@ -279,7 +358,7 @@ const OwnerDashboard = () => {
                   <EmptyState
                     icon={Activity}
                     title="No pending follow-ups"
-                    description="Today's action queues are cleared."
+                    description="Today's action queues are clear."
                     variant="embedded"
                     className="border-0 bg-transparent"
                   />
@@ -313,14 +392,14 @@ const OwnerDashboard = () => {
           )}
         </SectionCard>
 
-        <SectionCard title="Recent activity" description={isLoading ? "Loading activity..." : `${recentActivity.length} latest updates`} className="lg:col-span-1">
+        <SectionCard title="Recent activity" description={isLoading ? "Loading activity..." : `${recentActivity.length} recent updates`} className="lg:col-span-1">
           {isLoading ? (
             <SectionCardSkeletonRows rows={5} />
           ) : recentActivity.length === 0 ? (
             <EmptyState
               icon={Activity}
               title="No activity yet today"
-              description="As actions happen, they will appear here."
+              description="New actions appear here automatically."
               className="border-0 bg-transparent p-6"
               action={
                 <Link to={`/${gymSlug}/owner/members/new`}>
@@ -353,7 +432,7 @@ const OwnerDashboard = () => {
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-sm">Next best action</div>
             <div className="text-xs text-muted-foreground">
-              {urgentCount > 0 ? "Clear urgent renewals and unpaid dues first to stabilize today's operations." : "Review normal follow-up queues and keep momentum steady."}
+              {urgentCount > 0 ? "Clear urgent renewals and unpaid dues first." : "Review normal follow-up and keep momentum steady."}
             </div>
           </div>
           <Link to={urgentRenewals.length > 0 ? `/${gymSlug}/owner/memberships` : `/${gymSlug}/owner/reminders`} className="w-full sm:w-auto">
