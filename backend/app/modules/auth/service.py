@@ -61,6 +61,14 @@ class AuthService:
         )
         return refresh_token
 
+    @staticmethod
+    def _as_utc(dt: datetime | None) -> datetime | None:
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+
     def rotate_refresh_session(self, *, refresh_token: str, user_agent: str | None = None) -> tuple[dict, str]:
         token_hash = hash_refresh_token(refresh_token)
         token_doc = self.repo.get_refresh_token(token_hash)
@@ -83,7 +91,8 @@ class AuthService:
                     extra={"event": "auth.refresh.reuse_detected", "user_id": str(user_id)},
                 )
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-        if token_doc.get("expires_at") < now:
+        expires_at = self._as_utc(token_doc.get("expires_at"))
+        if not expires_at or expires_at < now:
             self.repo.revoke_refresh_token(token_hash, reason="expired")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 

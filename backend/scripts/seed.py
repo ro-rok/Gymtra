@@ -84,7 +84,7 @@ def run_seed():
         upsert=True,
     )
 
-    upsert_user(db, email="admin@gymos.app", password="admin123", name="Super Admin", role="super_admin", gym_id=None)
+    upsert_user(db, email="admin@gymtra.app", password="admin123", name="Super Admin", role="super_admin", gym_id=None)
     upsert_user(db, email="owner@ironparadise.com", password="owner123", name="Gym Owner", role="owner", gym_id=iron_id)
     upsert_user(db, email="trainer@ironparadise.com", password="trainer123", name="Gym Trainer", role="trainer", gym_id=iron_id)
     upsert_user(db, email="aarav@email.com", password="member123", name="Aarav Sharma", role="member", gym_id=iron_id)
