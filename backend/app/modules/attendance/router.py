@@ -66,7 +66,7 @@ def create_qr_token(db: Annotated[Database, Depends(get_db)], user=Depends(get_c
 
 @router.post("/qr/verify", response_model=AttendanceRecord, dependencies=[Depends(require_roles("member"))])
 def verify_qr_token(payload: QrVerifyPayload, db: Annotated[Database, Depends(get_db)], user=Depends(get_current_user)):
-    return AttendanceService(db).verify_qr_and_checkin(actor=user, token=payload.token)
+    return AttendanceService(db).verify_qr_and_checkin(actor=user, token=payload.token, mode=payload.mode)
 
 
 @router.post("/tasks", response_model=DailyTaskRecord, dependencies=[Depends(require_roles("member", "owner", "trainer"))])

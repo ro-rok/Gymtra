@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +7,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.db.mongo import get_db
+
+logger = logging.getLogger(__name__)
+
+
+def validate_runtime_security(settings) -> None:
+    cross_origin_enabled = len(settings.frontend_origins) > 0
+    if cross_origin_enabled and settings.auth_cookie_samesite.lower() != "none":
+        logger.critical("Invalid cookie policy: AUTH_COOKIE_SAMESITE must be 'none' for cross-origin auth")
+        raise RuntimeError("Invalid cookie policy for cross-origin auth")
 
 
 def ensure_indexes() -> None:
@@ -26,8 +36,14 @@ def ensure_indexes() -> None:
     db.attendance.create_index([("gym_id", 1), ("member_id", 1), ("day_key", 1)], unique=True)
     db.attendance.create_index([("gym_id", 1), ("day_key", 1)])
     db.daily_tasks.create_index([("gym_id", 1), ("member_id", 1), ("day_key", 1)], unique=True)
+    db.qr_nonce_consumptions.create_index([("created_at", 1)], expireAfterSeconds=600)
     db.qr_nonce_consumptions.create_index([("expires_at", 1)], expireAfterSeconds=0)
     db.qr_nonce_consumptions.create_index([("gym_id", 1), ("nonce", 1)], unique=True)
+    db.refresh_tokens.create_index("token_hash", unique=True)
+    db.refresh_tokens.create_index("user_id")
+    db.refresh_tokens.create_index([("expires_at", 1)], expireAfterSeconds=0)
+    db.refresh_token_events.create_index([("created_at", 1)], expireAfterSeconds=30 * 24 * 60 * 60)
+    db.notification_logs.create_index([("created_at", 1)], expireAfterSeconds=30 * 24 * 60 * 60)
     db.notification_logs.create_index([("gym_id", 1), ("user_id", 1), ("event_type", 1), ("created_at", -1)])
     db.diet_templates.create_index([("gym_id", 1), ("updated_at", -1)])
     db.member_diet_assignments.create_index([("gym_id", 1), ("member_id", 1), ("active", 1)])
@@ -41,6 +57,7 @@ def ensure_indexes() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    validate_runtime_security(settings)
     ensure_indexes()
     yield
 

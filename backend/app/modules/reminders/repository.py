@@ -23,3 +23,24 @@ class RemindersRepository:
 
     def create_log(self, payload: dict) -> None:
         self.db.notification_logs.insert_one({**payload, "created_at": datetime.now(timezone.utc)})
+
+    def has_recent_log(
+        self,
+        *,
+        gym_id: str,
+        user_id: str,
+        event_types: list[str],
+        within_minutes: int,
+        channel: str | None = None,
+    ) -> bool:
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=within_minutes)
+        query: dict = {
+            "gym_id": gym_id,
+            "user_id": user_id,
+            "event_type": {"$in": event_types},
+            "status": "sent",
+            "created_at": {"$gte": cutoff},
+        }
+        if channel:
+            query["channel"] = channel
+        return self.db.notification_logs.find_one(query) is not None

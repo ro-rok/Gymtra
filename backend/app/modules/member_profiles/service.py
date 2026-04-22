@@ -7,6 +7,7 @@ from pymongo.database import Database
 from app.core.audit import log_audit_event
 from app.core.security import hash_password
 from app.core.serializers import as_str_id
+from app.dependencies.auth import require_actor_gym_id
 from app.modules.member_profiles.repository import MemberProfilesRepository
 from app.modules.member_profiles.schemas import (
     MemberCreateRequest,
@@ -26,10 +27,7 @@ class MemberProfilesService:
         self.repo = MemberProfilesRepository(db)
 
     def _resolve_gym_id(self, actor: dict) -> ObjectId:
-        gym_id = actor.get("gym_id")
-        if not gym_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Gym context is required")
-        return gym_id
+        return require_actor_gym_id(actor)
 
     def _to_profile_payload(self, payload: dict) -> dict:
         return {
@@ -77,7 +75,7 @@ class MemberProfilesService:
 
     def create_member(self, actor: dict, payload: MemberCreateRequest) -> MemberDetailResponse:
         gym_id = self._resolve_gym_id(actor)
-        if self.repo.get_member_by_email(payload.email):
+        if self.repo.get_member_by_email(payload.email, gym_id):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
         user = self.repo.create_member_user(
             {

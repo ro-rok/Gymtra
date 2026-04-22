@@ -11,6 +11,14 @@ from app.modules.reminders.schemas import ReminderLogItem, ReminderQueueItem, Re
 
 
 class RemindersService:
+    REMINDER_CYCLE_MINUTES = 60
+    REMINDER_DEDUPE_MINUTES = 60
+    REMINDER_PRIORITY: dict[str, int] = {
+        "expired": 3,
+        "missed_workout": 2,
+        "inactivity": 1,
+    }
+
     def __init__(self, repo: RemindersRepository):
         self.repo = repo
         self.notifications = NotificationsService(repo.db)
@@ -52,7 +60,7 @@ class RemindersService:
                 continue
             present_days.setdefault(member_id, set()).add(row.get("day_key", ""))
 
-        items: list[ReminderQueueItem] = []
+        items_by_member: dict[str, ReminderQueueItem] = {}
         today = datetime.now(timezone.utc).date()
         month_ago = (today - timedelta(days=30)).isoformat()
         for member in members:
@@ -64,6 +72,7 @@ class RemindersService:
             name = member.get("name", "Member")
             if not phone:
                 continue
+            candidates: list[ReminderQueueItem] = []
             if ms:
                 end_date_raw = ms.get("end_date")
                 try:
@@ -73,19 +82,59 @@ class RemindersService:
                 if end_date:
                     if end_date < today:
                         msg = f"Hi {name}, your membership expired on {end_date.isoformat()}. Renew to continue your progress."
-                        items.append(ReminderQueueItem(memberId=member_id, gymId=as_str_id(gym_id) or "", memberName=name, phone=phone, type="overdue", message=msg, waUrl=self._wa_url(phone, msg)))
-                    elif end_date <= today + timedelta(days=5):
-                        msg = f"Hey {name}, your membership ends on {end_date.isoformat()}. Renew before expiry to avoid interruption."
-                        items.append(ReminderQueueItem(memberId=member_id, gymId=as_str_id(gym_id) or "", memberName=name, phone=phone, type="expiry", message=msg, waUrl=self._wa_url(phone, msg)))
+                        candidates.append(
+                            ReminderQueueItem(
+                                memberId=member_id,
+                                gymId=as_str_id(gym_id) or "",
+                                memberName=name,
+                                phone=phone,
+                                type="expired",
+                                message=msg,
+                                waUrl=self._wa_url(phone, msg),
+                            )
+                        )
 
             seen = present_days.get(member_id, set())
-            if today.isoformat() not in seen:
+            if not candidates and today.isoformat() not in seen:
                 msg = f"Hey {name}, we missed you today. Even a short session counts."
-                items.append(ReminderQueueItem(memberId=member_id, gymId=as_str_id(gym_id) or "", memberName=name, phone=phone, type="missed_workout", message=msg, waUrl=self._wa_url(phone, msg)))
-            if not any(day >= month_ago for day in seen):
+                candidates.append(
+                    ReminderQueueItem(
+                        memberId=member_id,
+                        gymId=as_str_id(gym_id) or "",
+                        memberName=name,
+                        phone=phone,
+                        type="missed_workout",
+                        message=msg,
+                        waUrl=self._wa_url(phone, msg),
+                    )
+                )
+            if not candidates and not any(day >= month_ago for day in seen):
                 msg = f"Hi {name}, it's been a while since your last workout. We'd love to have you back this week."
-                items.append(ReminderQueueItem(memberId=member_id, gymId=as_str_id(gym_id) or "", memberName=name, phone=phone, type="absence", message=msg, waUrl=self._wa_url(phone, msg)))
-        return items
+                candidates.append(
+                    ReminderQueueItem(
+                        memberId=member_id,
+                        gymId=as_str_id(gym_id) or "",
+                        memberName=name,
+                        phone=phone,
+                        type="inactivity",
+                        message=msg,
+                        waUrl=self._wa_url(phone, msg),
+                    )
+                )
+
+            if not candidates:
+                continue
+
+            top_candidate = max(candidates, key=lambda item: self.REMINDER_PRIORITY.get(item.type, 0))
+            if self.repo.has_recent_log(
+                gym_id=as_str_id(gym_id) or "",
+                user_id=member_id,
+                event_types=list(self.REMINDER_PRIORITY.keys()),
+                within_minutes=self.REMINDER_CYCLE_MINUTES,
+            ):
+                continue
+            items_by_member[member_id] = top_candidate
+        return list(items_by_member.values())
 
     def logs(self, actor: dict) -> list[ReminderLogItem]:
         gym_id = as_str_id(self._resolve_actor_gym(actor)) or ""
@@ -106,6 +155,14 @@ class RemindersService:
 
     def send(self, actor: dict, payload: ReminderSendPayload) -> dict:
         gym_id = as_str_id(self._resolve_actor_gym(actor)) or ""
+        if self.repo.has_recent_log(
+            gym_id=gym_id,
+            user_id=payload.memberId,
+            event_types=list(self.REMINDER_PRIORITY.keys()),
+            within_minutes=self.REMINDER_DEDUPE_MINUTES,
+            channel=payload.channel,
+        ):
+            return {"success": True, "deduped": True}
         self.repo.create_log(
             {
                 "gym_id": gym_id,
@@ -117,7 +174,7 @@ class RemindersService:
             }
         )
         if payload.channel == "push":
-            self.notifications.send_event(
+            self.notifications.send_event_async(
                 event_type=payload.type,
                 title="Gymtra Reminder",
                 body=payload.message,

@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import type { AuthUser, Role } from "@/lib/types";
-import { ApiError } from "@/lib/api-client";
+import { ApiError, setAuthFailureHandler } from "@/lib/api-client";
 import { loginRequest, logoutRequest, meRequest } from "@/lib/auth-api";
+import { unregisterPushSubscription } from "@/lib/push-api";
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -42,6 +43,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
+  useEffect(() => {
+    const handler = async () => {
+      setUser(null);
+      await unregisterPushSubscription().catch(() => undefined);
+    };
+    setAuthFailureHandler(handler);
+    return () => setAuthFailureHandler(null);
+  }, []);
+
   const login = useCallback(async (email: string, password: string, gymSlug?: string) => {
     try {
       const response = await loginRequest({ email, password, gymSlug });
@@ -61,6 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch {
       // Backends may not expose logout while cookie expires naturally.
     }
+    await unregisterPushSubscription().catch(() => undefined);
     setUser(null);
   }, []);
 

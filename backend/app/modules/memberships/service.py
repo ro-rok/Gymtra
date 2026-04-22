@@ -43,6 +43,33 @@ class MembershipsService:
             renewedFromId=as_str_id(row.get("renewed_from_id")),
         )
 
+    def _latest_valid_membership(self, *, member_id: ObjectId, gym_id: ObjectId) -> dict | None:
+        return self.db.memberships.find_one(
+            {"gym_id": gym_id, "user_id": member_id},
+            sort=[("end_date", -1), ("created_at", -1)],
+        )
+
+    def _enforce_single_active_membership(self, *, member_id: ObjectId, gym_id: ObjectId) -> None:
+        active_rows = list(self.db.memberships.find({"gym_id": gym_id, "user_id": member_id, "status": "active"}).sort("created_at", -1))
+        if len(active_rows) <= 1:
+            return
+        latest_id = active_rows[0].get("_id")
+        self.db.memberships.update_many(
+            {"gym_id": gym_id, "user_id": member_id, "status": "active", "_id": {"$ne": latest_id}},
+            {"$set": {"status": "expired", "updated_at": datetime.now(timezone.utc)}},
+        )
+
+    def _sync_member_status_from_membership(self, *, member_id: ObjectId, gym_id: ObjectId) -> None:
+        latest = self._latest_valid_membership(member_id=member_id, gym_id=gym_id)
+        if not latest:
+            self.repo.update_member_status(member_id, gym_id, "inactive")
+            return
+        now = datetime.now(timezone.utc)
+        end_date = latest.get("end_date")
+        latest_status = latest.get("status")
+        is_active = latest_status == "active" and isinstance(end_date, datetime) and end_date >= now
+        self.repo.update_member_status(member_id, gym_id, "active" if is_active else "inactive")
+
     def create_membership(self, actor: dict, payload: MembershipCreateRequest) -> MembershipResponse:
         gym_id = self._resolve_gym_id(actor)
         if not ObjectId.is_valid(payload.memberId):
@@ -66,7 +93,8 @@ class MembershipsService:
                 "created_by": actor.get("_id"),
             }
         )
-        self.repo.update_member_status(member_id, gym_id, "active")
+        self._enforce_single_active_membership(member_id=member_id, gym_id=gym_id)
+        self._sync_member_status_from_membership(member_id=member_id, gym_id=gym_id)
         log_audit_event(
             self.db,
             action="memberships.create",
@@ -83,7 +111,7 @@ class MembershipsService:
         member_oid = ObjectId(member_id)
         if not self.repo.get_member(member_oid, gym_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
-        latest = self.db.memberships.find_one({"gym_id": gym_id, "user_id": member_oid}, sort=[("created_at", -1)])
+        latest = self._latest_valid_membership(member_id=member_oid, gym_id=gym_id)
         start_dt = datetime.combine(payload.startDate, datetime.min.time(), tzinfo=timezone.utc) if payload.startDate else datetime.now(timezone.utc)
         end_dt = start_dt + timedelta(days=self._duration_days(payload.plan))
         self.repo.expire_active_memberships(member_oid, gym_id)
@@ -100,7 +128,8 @@ class MembershipsService:
                 "created_by": actor.get("_id"),
             }
         )
-        self.repo.update_member_status(member_oid, gym_id, "active")
+        self._enforce_single_active_membership(member_id=member_oid, gym_id=gym_id)
+        self._sync_member_status_from_membership(member_id=member_oid, gym_id=gym_id)
         log_audit_event(
             self.db,
             action="memberships.renew",

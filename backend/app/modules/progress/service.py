@@ -17,6 +17,9 @@ from app.modules.progress.schemas import (
 
 
 class ProgressService:
+    DELETE_RATE_LIMIT_WINDOW_SECONDS = 30
+    DELETE_RATE_LIMIT_MAX = 3
+
     def __init__(self, db: Database):
         self.db = db
         self.repo = ProgressRepository(db)
@@ -96,4 +99,55 @@ class ProgressService:
             latestWeight=latest_weight,
             deltaWeight=delta,
         )
+
+    def _enforce_delete_rate_limit(self, *, actor_user_id: str) -> None:
+        cutoff = datetime.now(timezone.utc).timestamp() - self.DELETE_RATE_LIMIT_WINDOW_SECONDS
+        recent_count = self.db.audit_logs.count_documents(
+            {
+                "action": "progress.log.delete",
+                "actor_user_id": actor_user_id,
+                "created_at": {"$gte": datetime.fromtimestamp(cutoff, tz=timezone.utc)},
+            }
+        )
+        if recent_count >= self.DELETE_RATE_LIMIT_MAX:
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many delete attempts")
+
+    def delete_log(self, actor: dict, log_id: str) -> dict:
+        gym_id = self._resolve_actor_gym(actor)
+        if not ObjectId.is_valid(log_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Progress log not found")
+        actor_user_id = as_str_id(actor.get("_id")) or ""
+        self._enforce_delete_rate_limit(actor_user_id=actor_user_id)
+        row = self.repo.get_log(gym_id=gym_id, log_id=ObjectId(log_id))
+        if not row:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Progress log not found")
+
+        actor_role = actor.get("role")
+        actor_member_id = as_str_id(actor.get("_id")) or ""
+        row_member_id = as_str_id(row.get("member_id")) or ""
+        is_owner_delete = actor_role == "member" and actor_member_id == row_member_id
+        is_admin_delete = actor_role in {"owner", "super_admin"}
+        if not (is_owner_delete or is_admin_delete):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to delete this log")
+
+        deleted = self.repo.delete_log(gym_id=gym_id, log_id=ObjectId(log_id))
+        if not deleted:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Progress log not found")
+
+        log_audit_event(
+            self.db,
+            action="progress.log.delete",
+            actor_user_id=actor_user_id,
+            target_type="progress_log",
+            target_id=log_id,
+            metadata={
+                "member_id": row_member_id,
+                "log_date": (row.get("log_date") or datetime.now(timezone.utc)).strftime("%Y-%m-%d"),
+                "weight_kg": row.get("weight_kg"),
+                "body_fat_pct": row.get("body_fat_pct"),
+                "measurements": row.get("measurements"),
+                "notes": row.get("notes"),
+            },
+        )
+        return {"success": True}
 

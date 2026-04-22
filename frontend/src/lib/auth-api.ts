@@ -10,4 +10,4 @@ export const loginRequest = (payload: { email: string; password: string; gymSlug
 
 export const meRequest = () => apiGet<AuthUser>("/api/v1/auth/me");
 
-export const logoutRequest = () => apiPost<unknown>("/api/v1/auth/logout");
+export const logoutRequest = () => apiPost<unknown>("/api/v1/auth/logout", undefined, { skipAuthHandling: true });

@@ -17,6 +17,7 @@ class AttendanceRepository:
         status: str,
         marked_by: ObjectId,
         source: str,
+        trust_level: str,
     ) -> dict:
         now = datetime.now(timezone.utc)
         self.db.attendance.update_one(
@@ -26,6 +27,7 @@ class AttendanceRepository:
                     "status": status,
                     "marked_by": marked_by,
                     "source": source,
+                    "trust_level": trust_level,
                     "updated_at": now,
                 },
                 "$setOnInsert": {
@@ -38,6 +40,12 @@ class AttendanceRepository:
             upsert=True,
         )
         return self.db.attendance.find_one({"gym_id": gym_id, "member_id": member_id, "day_key": day_key}) or {}
+
+    def get_attendance(self, *, gym_id: ObjectId, member_id: ObjectId, day_key: str) -> dict | None:
+        return self.db.attendance.find_one({"gym_id": gym_id, "member_id": member_id, "day_key": day_key})
+
+    def count_attendance_records(self, *, gym_id: ObjectId, member_id: ObjectId, day_key: str) -> int:
+        return self.db.attendance.count_documents({"gym_id": gym_id, "member_id": member_id, "day_key": day_key})
 
     def get_attendance_for_day(self, *, gym_id: ObjectId, day_key: str) -> list[dict]:
         return list(self.db.attendance.find({"gym_id": gym_id, "day_key": day_key}))

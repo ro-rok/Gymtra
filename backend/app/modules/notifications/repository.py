@@ -10,7 +10,11 @@ class NotificationsRepository:
     def upsert_push_subscription(self, data: dict):
         now = datetime.now(timezone.utc)
         self.db.push_subscriptions.update_one(
-            {"endpoint": data["endpoint"]},
+            {
+                "endpoint": data["endpoint"],
+                "user_id": data["user_id"],
+                "gym_id": data.get("gym_id"),
+            },
             {
                 "$set": {
                     **data,
@@ -22,9 +26,24 @@ class NotificationsRepository:
             upsert=True,
         )
 
-    def deactivate_push_subscription(self, endpoint: str):
+    def deactivate_push_subscription(self, endpoint: str, *, user_id: str, gym_id: str | None):
         self.db.push_subscriptions.update_one(
+            {"endpoint": endpoint, "user_id": user_id, "gym_id": gym_id},
+            {"$set": {"active": False, "updated_at": datetime.now(timezone.utc)}},
+        )
+
+    def deactivate_push_subscription_by_endpoint(self, endpoint: str, *, reason: str = "stale_endpoint") -> None:
+        self.db.push_subscriptions.update_many(
             {"endpoint": endpoint},
+            {"$set": {"active": False, "deactivated_reason": reason, "updated_at": datetime.now(timezone.utc)}},
+        )
+
+    def deactivate_all_push_subscriptions_for_user(self, *, user_id: str, gym_id: str | None):
+        query: dict = {"user_id": user_id}
+        if gym_id is not None:
+            query["gym_id"] = gym_id
+        self.db.push_subscriptions.update_many(
+            query,
             {"$set": {"active": False, "updated_at": datetime.now(timezone.utc)}},
         )
 

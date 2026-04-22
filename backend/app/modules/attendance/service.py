@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import jwt
 from bson import ObjectId
@@ -21,14 +22,25 @@ from app.modules.notifications.service import NotificationsService
 
 
 class AttendanceService:
+    CHECKIN_RATE_LIMIT_SECONDS = 15
+
     def __init__(self, db: Database):
         self.db = db
         self.repo = AttendanceRepository(db)
         self.settings = get_settings()
 
-    @staticmethod
-    def _day_key(value: date | None = None) -> str:
-        return (value or datetime.now(timezone.utc).date()).isoformat()
+    def _gym_timezone(self, gym_id: ObjectId) -> ZoneInfo:
+        gym = self.db.gyms.find_one({"_id": gym_id}, {"timezone": 1})
+        timezone_name = (gym or {}).get("timezone") or "UTC"
+        try:
+            return ZoneInfo(timezone_name)
+        except Exception:
+            return ZoneInfo("UTC")
+
+    def _day_key(self, *, gym_id: ObjectId, value: date | None = None) -> str:
+        if value is not None:
+            return value.isoformat()
+        return datetime.now(self._gym_timezone(gym_id)).date().isoformat()
 
     @staticmethod
     def _to_attendance(row: dict) -> AttendanceRecord:
@@ -40,6 +52,7 @@ class AttendanceService:
             status=row.get("status", "present"),
             markedBy=as_str_id(row.get("marked_by")) or "",
             source=row.get("source", "manual"),
+            trustLevel=row.get("trust_level", "high"),
         )
 
     @staticmethod
@@ -76,7 +89,7 @@ class AttendanceService:
     ) -> AttendanceRecord:
         gym_id = self._resolve_actor_gym(actor)
         member_oid = self._ensure_member_in_gym(member_id=member_id, gym_id=gym_id)
-        day_key = self._day_key(day)
+        day_key = self._day_key(gym_id=gym_id, value=day)
         row = self.repo.upsert_attendance(
             gym_id=gym_id,
             member_id=member_oid,
@@ -84,12 +97,15 @@ class AttendanceService:
             status=status_text,
             marked_by=actor.get("_id"),
             source=source,
+            trust_level="low" if source == "static_qr" else "high",
         )
+        if self.repo.count_attendance_records(gym_id=gym_id, member_id=member_oid, day_key=day_key) > 1:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Conflicting attendance records found for day")
         return self._to_attendance(row)
 
     def list_day_attendance(self, *, actor: dict, day: date | None) -> AttendanceDayResponse:
         gym_id = self._resolve_actor_gym(actor)
-        day_key = self._day_key(day)
+        day_key = self._day_key(gym_id=gym_id, value=day)
         rows = self.repo.get_attendance_for_day(gym_id=gym_id, day_key=day_key)
         return AttendanceDayResponse(date=day_key, items=[self._to_attendance(row) for row in rows])
 
@@ -107,7 +123,8 @@ class AttendanceService:
     def create_qr_token(self, *, actor: dict) -> QrTokenResponse:
         gym_id = self._resolve_actor_gym(actor)
         now = datetime.now(timezone.utc)
-        expires = now + timedelta(seconds=self.settings.qr_token_ttl_seconds)
+        ttl_seconds = min(self.settings.qr_token_ttl_seconds, 60)
+        expires = now + timedelta(seconds=ttl_seconds)
         payload = {
             "gym_id": as_str_id(gym_id),
             "nonce": uuid4().hex,
@@ -117,10 +134,34 @@ class AttendanceService:
         token = jwt.encode(payload, self.settings.qr_token_secret, algorithm=self.settings.jwt_algorithm)
         return QrTokenResponse(token=token, expiresAt=expires.isoformat())
 
-    def verify_qr_and_checkin(self, *, actor: dict, token: str) -> AttendanceRecord:
+    def _enforce_checkin_rate_limit(self, *, gym_id: ObjectId, member_id: ObjectId, day_key: str) -> None:
+        row = self.repo.get_attendance(gym_id=gym_id, member_id=member_id, day_key=day_key)
+        if not row:
+            return
+        updated_at = row.get("updated_at") or row.get("created_at")
+        if not isinstance(updated_at, datetime):
+            return
+        if (datetime.now(timezone.utc) - updated_at).total_seconds() < self.CHECKIN_RATE_LIMIT_SECONDS:
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Check-in attempted too frequently")
+
+    def verify_qr_and_checkin(self, *, actor: dict, token: str | None, mode: str = "dynamic") -> AttendanceRecord:
         if actor.get("role") != "member":
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only members can verify QR")
         gym_id = self._resolve_actor_gym(actor)
+        member_id = as_str_id(actor.get("_id")) or ""
+        member_oid = self._ensure_member_in_gym(member_id=member_id, gym_id=gym_id)
+        day_key = self._day_key(gym_id=gym_id)
+        self._enforce_checkin_rate_limit(gym_id=gym_id, member_id=member_oid, day_key=day_key)
+        if mode == "static":
+            return self.mark_attendance(
+                actor=actor,
+                member_id=member_id,
+                day=None,
+                status_text="present",
+                source="static_qr",
+            )
+        if not token:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="QR token is required")
         try:
             payload = jwt.decode(token, self.settings.qr_token_secret, algorithms=[self.settings.jwt_algorithm])
         except jwt.InvalidTokenError as exc:
@@ -135,7 +176,7 @@ class AttendanceService:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="QR token already consumed")
         return self.mark_attendance(
             actor=actor,
-            member_id=as_str_id(actor.get("_id")) or "",
+            member_id=member_id,
             day=None,
             status_text="present",
             source="qr",
@@ -159,7 +200,7 @@ class AttendanceService:
         row = self.repo.upsert_daily_task(
             gym_id=gym_id,
             member_id=member_oid,
-            day_key=self._day_key(day),
+            day_key=self._day_key(gym_id=gym_id, value=day),
             workout=workout,
             meal=meal,
             water=water,
@@ -169,7 +210,7 @@ class AttendanceService:
             NotificationsService(self.db).send_daily_task_reminder_if_needed(
                 gym_id=as_str_id(gym_id) or "",
                 user_id=as_str_id(member_oid) or "",
-                day_key=self._day_key(day),
+                day_key=self._day_key(gym_id=gym_id, value=day),
                 task_row=row,
             )
         return self._to_daily_task(row)
@@ -179,7 +220,7 @@ class AttendanceService:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only members can access this dashboard data")
         gym_id = self._resolve_actor_gym(actor)
         member_oid = ObjectId(actor["_id"])
-        day_key = self._day_key()
+        day_key = self._day_key(gym_id=gym_id)
         attendance_rows = self.repo.get_member_attendance(gym_id=gym_id, member_id=member_oid, limit=120)
         task_rows = self.repo.get_daily_tasks_for_member(gym_id=gym_id, member_id=member_oid, limit=120)
         today_task = self.repo.get_daily_task(gym_id=gym_id, member_id=member_oid, day_key=day_key)
@@ -190,7 +231,7 @@ class AttendanceService:
             for row in task_rows
             if row.get("workout") and row.get("meal") and row.get("water")
         }
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(self._gym_timezone(gym_id)).date()
         month_prefix = today.strftime("%Y-%m")
         skipped_days_this_month = len(
             [row for row in attendance_rows if row.get("day_key", "").startswith(month_prefix) and row.get("status") == "skipped"]

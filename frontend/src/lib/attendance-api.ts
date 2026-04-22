@@ -7,7 +7,8 @@ export interface AttendanceItem {
   date: string;
   status: "present" | "skipped";
   markedBy: string;
-  source: "manual" | "member_self" | "qr";
+  source: "manual" | "member_self" | "qr" | "static_qr";
+  trustLevel: "high" | "low";
 }
 
 export interface AttendanceDayResponse {
@@ -52,8 +53,8 @@ export const memberSelfCheckInRequest = (date?: string) =>
 
 export const createAttendanceQrTokenRequest = () => apiPost<{ token: string; expiresAt: string }>("/api/v1/attendance/qr/token");
 
-export const verifyAttendanceQrRequest = (token: string) =>
-  apiPost<AttendanceItem>("/api/v1/attendance/qr/verify", { token });
+export const verifyAttendanceQrRequest = (token: string, mode: "dynamic" | "static" = "dynamic") =>
+  apiPost<AttendanceItem>("/api/v1/attendance/qr/verify", { token: token || undefined, mode });
 
 export const upsertDailyTasksRequest = (payload: {
   date: string;

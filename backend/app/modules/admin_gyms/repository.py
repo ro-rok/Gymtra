@@ -17,8 +17,8 @@ class AdminGymsRepository:
     def get_by_slug(self, slug: str) -> dict | None:
         return self.db.gyms.find_one({"slug": slug})
 
-    def get_user_by_email(self, email: str) -> dict | None:
-        return self.db.users.find_one({"email": email})
+    def get_global_user_by_email(self, email: str) -> dict | None:
+        return self.db.users.find_one({"email": email.lower().strip()})
 
     def create_gym(self, payload: dict) -> dict:
         now = datetime.now(timezone.utc)

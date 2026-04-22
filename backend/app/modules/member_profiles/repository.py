@@ -26,8 +26,8 @@ class MemberProfilesRepository:
     def get_member_user(self, member_id: ObjectId, gym_id: ObjectId) -> dict | None:
         return self.db.users.find_one({"_id": member_id, "gym_id": gym_id, "role": "member"})
 
-    def get_member_by_email(self, email: str) -> dict | None:
-        return self.db.users.find_one({"email": email.lower().strip()})
+    def get_member_by_email(self, email: str, gym_id: ObjectId) -> dict | None:
+        return self.db.users.find_one({"email": email.lower().strip(), "gym_id": gym_id, "role": "member"})
 
     def list_members(self, gym_id: ObjectId, query: str | None, status: str | None) -> list[dict]:
         criteria: dict = {"gym_id": gym_id, "role": "member"}

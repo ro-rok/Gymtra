@@ -38,8 +38,11 @@ def remove_push_subscription(
     db: Annotated[Database, Depends(get_db)],
     user=Depends(get_current_user),
 ):
-    _ = user
-    NotificationsService(db).remove_subscription(payload.endpoint)
+    NotificationsService(db).remove_subscription(
+        endpoint=payload.endpoint,
+        user_id=as_str_id(user.get("_id")) or "",
+        gym_id=as_str_id(user.get("gym_id")),
+    )
     return {"success": True}
 
 
@@ -49,7 +52,7 @@ def trigger_notification(
     db: Annotated[Database, Depends(get_db)],
     user=Depends(get_current_user),
 ):
-    NotificationsService(db).send_event(
+    NotificationsService(db).send_event_async(
         event_type=payload.eventType,
         title=payload.title,
         body=payload.body,

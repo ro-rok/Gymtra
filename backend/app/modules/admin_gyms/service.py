@@ -44,7 +44,7 @@ class AdminGymsService:
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail="Owner name, email, and password are required when creating owner signup",
                 )
-            if payload.ownerEmail and self.repo.get_user_by_email(str(payload.ownerEmail).lower()):
+            if payload.ownerEmail and self.repo.get_global_user_by_email(str(payload.ownerEmail).lower()):
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Owner email already exists")
         gym = self.repo.create_gym(
             {

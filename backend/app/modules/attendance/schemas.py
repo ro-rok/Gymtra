@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 AttendanceStatus = Literal["present", "skipped"]
+QrMode = Literal["dynamic", "static"]
 
 
 class AttendanceMarkPayload(BaseModel):
@@ -17,7 +18,8 @@ class MemberCheckInPayload(BaseModel):
 
 
 class QrVerifyPayload(BaseModel):
-    token: str = Field(min_length=8)
+    mode: QrMode = "dynamic"
+    token: str | None = Field(default=None, min_length=8)
 
 
 class DailyTaskUpsertPayload(BaseModel):
@@ -35,7 +37,8 @@ class AttendanceRecord(BaseModel):
     date: str
     status: AttendanceStatus
     markedBy: str
-    source: Literal["manual", "member_self", "qr"]
+    source: Literal["manual", "member_self", "qr", "static_qr"]
+    trustLevel: Literal["high", "low"] = "high"
 
 
 class DailyTaskRecord(BaseModel):

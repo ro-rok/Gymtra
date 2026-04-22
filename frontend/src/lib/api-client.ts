@@ -1,4 +1,11 @@
-const DEFAULT_BASE_URL = "http://localhost:8000";
+const resolveDefaultBaseUrl = () => {
+  if (typeof window === "undefined") return "http://localhost:8000";
+  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+  const host = window.location.hostname || "localhost";
+  return `${protocol}//${host}:8000`;
+};
+
+const DEFAULT_BASE_URL = resolveDefaultBaseUrl();
 
 export class ApiError extends Error {
   status: number;
@@ -49,7 +56,37 @@ interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   tenantSlug?: string;
+  skipAuthHandling?: boolean;
+  _retriedAfterRefresh?: boolean;
 }
+
+let refreshInFlight: Promise<boolean> | null = null;
+let onAuthFailure: (() => void | Promise<void>) | null = null;
+
+const REFRESH_PATH = "/api/v1/auth/refresh";
+
+export const setAuthFailureHandler = (handler: (() => void | Promise<void>) | null) => {
+  onAuthFailure = handler;
+};
+
+const shouldHandle401 = (path: string, options: RequestOptions) =>
+  !options.skipAuthHandling && !options._retriedAfterRefresh && path !== REFRESH_PATH;
+
+const attemptRefresh = async () => {
+  if (!refreshInFlight) {
+    refreshInFlight = fetch(`${API_BASE_URL}${REFRESH_PATH}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+    })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+};
 
 export const apiRequest = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
   const { method = "GET", body, headers, query, signal, tenantSlug } = options;
@@ -69,6 +106,16 @@ export const apiRequest = async <T>(path: string, options: RequestOptions = {}):
 
   const isJson = response.headers.get("content-type")?.includes("application/json");
   const payload = isJson ? await response.json().catch(() => null) : null;
+
+  if (response.status === 401 && shouldHandle401(path, options)) {
+    const refreshed = await attemptRefresh();
+    if (refreshed) {
+      return apiRequest<T>(path, { ...options, _retriedAfterRefresh: true });
+    }
+    if (onAuthFailure) {
+      await onAuthFailure();
+    }
+  }
 
   if (!response.ok) {
     throw new ApiError(getErrorMessage(payload, "Request failed"), response.status, payload);

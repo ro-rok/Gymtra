@@ -17,3 +17,10 @@ class ProgressRepository:
     def list_logs(self, gym_id: ObjectId, member_id: ObjectId) -> list[dict]:
         return list(self.db.progress_logs.find({"gym_id": gym_id, "member_id": member_id}).sort("log_date", 1))
 
+    def get_log(self, *, gym_id: ObjectId, log_id: ObjectId) -> dict | None:
+        return self.db.progress_logs.find_one({"_id": log_id, "gym_id": gym_id})
+
+    def delete_log(self, *, gym_id: ObjectId, log_id: ObjectId) -> bool:
+        result = self.db.progress_logs.delete_one({"_id": log_id, "gym_id": gym_id})
+        return result.deleted_count == 1
+

@@ -1,7 +1,7 @@
 from functools import lru_cache
-from typing import Annotated, List
+from typing import Annotated, List, Literal
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -18,10 +18,12 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 720
+    refresh_token_expire_days: int = 30
 
     auth_cookie_name: str = "gymtra_access_token"
+    refresh_cookie_name: str = "gymtra_refresh_token"
     auth_cookie_secure: bool = False
-    auth_cookie_samesite: str = "lax"
+    auth_cookie_samesite: Literal["none", "lax", "strict"] = "none"
     auth_cookie_domain: str | None = None
 
     frontend_origins: Annotated[List[str], NoDecode] = ["http://localhost:8080", "http://127.0.0.1:8080"]
@@ -40,6 +42,18 @@ class Settings(BaseSettings):
         if not value:
             return []
         return [item.strip() for item in value.split(",") if item.strip()]
+
+    @model_validator(mode="after")
+    def validate_cookie_security(self):
+        env = (self.app_env or "").strip().lower()
+        cross_origin_enabled = len(self.frontend_origins) > 0
+        same_site = self.auth_cookie_samesite.lower()
+
+        if cross_origin_enabled and same_site != "none":
+            raise ValueError("AUTH_COOKIE_SAMESITE must be 'none' when cross-origin credentials are enabled")
+        if env == "production" and not self.auth_cookie_secure:
+            raise ValueError("AUTH_COOKIE_SECURE must be true in production")
+        return self
 
 
 @lru_cache

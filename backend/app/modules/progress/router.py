@@ -33,3 +33,12 @@ def get_progress_series(
 ):
     return ProgressService(db).series(user, memberId)
 
+
+@router.delete("/logs/{logId}", dependencies=[Depends(require_roles("member", "owner", "super_admin"))])
+def delete_progress_log(
+    logId: str,
+    db: Annotated[Database, Depends(get_db)],
+    user=Depends(get_current_user),
+):
+    return ProgressService(db).delete_log(user, logId)
+
