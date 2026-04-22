@@ -1,5 +1,17 @@
+import hashlib
+import re
+import time
+
+from fastapi import HTTPException, status
+
+from app.core.config import get_settings
 from app.modules.tenants.repository import TenantsRepository
-from app.modules.tenants.schemas import TenantBrandingResponse
+from app.modules.tenants.schemas import (
+    TenantBrandingResponse,
+    TenantLogoUpdateRequest,
+    TenantLogoUploadSignRequest,
+    TenantLogoUploadSignResponse,
+)
 
 
 class TenantsService:
@@ -15,6 +27,59 @@ class TenantsService:
             slug=gym["slug"],
             name=gym["name"],
             logo=gym.get("logo"),
+            tagline=(branding or {}).get("tagline", gym.get("tagline")),
+            brandColor=(branding or {}).get("brand_color"),
+        )
+
+    @staticmethod
+    def _slugify_filename(file_name: str) -> str:
+        stem = file_name.rsplit(".", 1)[0].strip().lower() or "logo"
+        return re.sub(r"[^a-z0-9]+", "-", stem).strip("-")[:48] or "logo"
+
+    def create_logo_upload_signature(
+        self,
+        *,
+        actor: dict,
+        slug: str,
+        payload: TenantLogoUploadSignRequest,
+    ) -> TenantLogoUploadSignResponse:
+        gym, _ = self.repo.get_tenant_by_slug(slug)
+        if not gym:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+        if str(actor.get("gym_id") or "") != str(gym.get("_id")):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden for current gym")
+
+        settings = get_settings()
+        if not settings.cloudinary_cloud_name or not settings.cloudinary_api_key or not settings.cloudinary_api_secret:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Cloudinary is not configured")
+
+        timestamp = int(time.time())
+        folder = f"{settings.cloudinary_upload_folder.rstrip('/')}/{slug}"
+        safe_name = self._slugify_filename(payload.fileName)
+        public_id = f"{safe_name}-{timestamp}"
+        sign_string = f"folder={folder}&public_id={public_id}&timestamp={timestamp}{settings.cloudinary_api_secret}"
+        signature = hashlib.sha1(sign_string.encode("utf-8")).hexdigest()
+        return TenantLogoUploadSignResponse(
+            cloudName=settings.cloudinary_cloud_name,
+            apiKey=settings.cloudinary_api_key,
+            timestamp=timestamp,
+            folder=folder,
+            publicId=public_id,
+            signature=signature,
+        )
+
+    def update_logo(self, *, actor: dict, slug: str, payload: TenantLogoUpdateRequest) -> TenantBrandingResponse:
+        gym, branding = self.repo.get_tenant_by_slug(slug)
+        if not gym:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+        if str(actor.get("gym_id") or "") != str(gym.get("_id")):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden for current gym")
+        self.repo.update_gym_logo(gym["_id"], payload.logoUrl.strip())
+        return TenantBrandingResponse(
+            gymId=str(gym["_id"]),
+            slug=gym["slug"],
+            name=gym["name"],
+            logo=payload.logoUrl.strip(),
             tagline=(branding or {}).get("tagline", gym.get("tagline")),
             brandColor=(branding or {}).get("brand_color"),
         )

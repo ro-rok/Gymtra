@@ -14,6 +14,14 @@ class AuthRepository:
             query["role"] = role
         return self.db.users.find_one(query)
 
+    def get_user_by_phone(self, phone: str, *, gym_id: ObjectId | None = None, role: str | None = None):
+        query: dict = {"phone": phone.strip()}
+        if gym_id is not None:
+            query["gym_id"] = gym_id
+        if role is not None:
+            query["role"] = role
+        return self.db.users.find_one(query)
+
     def get_user_by_id(self, user_id: str, *, gym_id: ObjectId | None = None):
         if not ObjectId.is_valid(user_id):
             return None

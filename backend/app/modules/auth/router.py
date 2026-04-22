@@ -11,7 +11,7 @@ from app.core.observability import log_structured_error
 from app.core.security import create_access_token
 from app.db.mongo import get_db
 from app.dependencies.auth import get_current_user
-from app.modules.auth.schemas import AuthUserResponse, LoginRequest, LoginResponse
+from app.modules.auth.schemas import AuthUserResponse, LoginPhoneRequest, LoginRequest, LoginResponse
 from app.modules.auth.service import AuthService
 from app.modules.auth.rate_limit import InMemoryRateLimiter
 from app.modules.notifications.service import NotificationsService
@@ -114,6 +114,41 @@ def login(payload: LoginRequest, response: Response, request: Request, db: Annot
             event="auth.login.unhandled_exception",
             error=exc,
             context={"ip": _client_ip(request), "email": payload.email.lower().strip()},
+        )
+        raise
+
+
+@router.post("/login-phone", response_model=LoginResponse)
+def login_phone(payload: LoginPhoneRequest, response: Response, request: Request, db: Annotated[Database, Depends(get_db)]):
+    try:
+        _rate_limit_or_raise(LOGIN_RATE_LIMITER, f"{_client_ip(request)}:{payload.phone.strip()}", "auth.login_phone.rate_limited")
+        service = AuthService(db)
+        user = service.login_phone(phone=payload.phone, password=payload.password, gym_slug=payload.gymSlug)
+        refresh_token = service.create_refresh_session(user=user, user_agent=request.headers.get("user-agent"))
+        token = create_access_token(
+            subject=str(user["_id"]),
+            extra_claims={
+                "role": user["role"],
+                "gym_id": str(user.get("gym_id")) if user.get("gym_id") else None,
+                "iat": int(datetime.now(timezone.utc).timestamp()),
+            },
+        )
+        _set_auth_cookie(response, token)
+        _set_refresh_cookie(response, refresh_token)
+        log_audit_event(db, action="auth.login_phone", actor_user_id=str(user["_id"]), metadata={"role": user["role"]})
+        logger.info(
+            "auth.login_phone.success",
+            extra={"event": "auth.login_phone.success", "user_id": str(user["_id"]), "role": user["role"], "ip": _client_ip(request)},
+        )
+        return LoginResponse(user=service.to_auth_user(user))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log_structured_error(
+            logger,
+            event="auth.login_phone.unhandled_exception",
+            error=exc,
+            context={"ip": _client_ip(request), "phone": payload.phone.strip()},
         )
         raise
 

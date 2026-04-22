@@ -1,16 +1,17 @@
-import { ReactNode } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import { NavLink, useParams, useNavigate } from "react-router-dom";
-import { LucideIcon, LogOut } from "lucide-react";
+import { LucideIcon, LogOut, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { PageTransition } from "@/components/PageTransition";
 import { PageMeta } from "@/components/PageMeta";
+import { GymIdentity } from "@/components/GymIdentity";
 
 export type NavItem = { to: string; label: string; icon: LucideIcon };
 
 interface AppShellProps {
-  brand: { name: string; logo: string; role: string };
+  brand: { name: string; logo: string; role: string; brandColor?: string };
   nav: NavItem[];
   children: ReactNode;
 }
@@ -20,6 +21,10 @@ export const AppShell = ({ brand, nav, children }: AppShellProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const resolve = (to: string) => (gymSlug ? to.replace(":gymSlug", gymSlug) : to);
+
+  const [showMore, setShowMore] = useState(false);
+  const primaryNav = useMemo(() => nav.slice(0, 4), [nav]);
+  const overflowNav = useMemo(() => nav.slice(4), [nav]);
 
   const handleLogout = async () => {
     await logout();
@@ -33,9 +38,7 @@ export const AppShell = ({ brand, nav, children }: AppShellProps) => {
       <aside className="hidden md:flex fixed inset-y-0 left-0 w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border z-40">
         <div className="p-5 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl gradient-primary flex items-center justify-center text-xl shadow-glow">
-              {brand.logo}
-            </div>
+            <GymIdentity name={brand.name} logo={brand.logo} brandColor={brand.brandColor} size="sm" className="w-11 h-11 rounded-xl text-base shadow-glow" />
             <div className="min-w-0 flex-1">
               <div className="font-display font-bold text-sidebar-accent-foreground truncate text-[15px]">{brand.name}</div>
               <div className="text-[10px] text-sidebar-foreground/50 uppercase tracking-[0.15em] font-semibold">{brand.role}</div>
@@ -90,9 +93,7 @@ export const AppShell = ({ brand, nav, children }: AppShellProps) => {
       {/* Mobile top bar */}
       <header className="md:hidden sticky top-0 z-40 bg-secondary/95 backdrop-blur text-secondary-foreground border-b border-sidebar-border">
         <div className="flex items-center gap-3 px-4 h-14">
-          <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center text-base">
-            {brand.logo}
-          </div>
+          <GymIdentity name={brand.name} logo={brand.logo} brandColor={brand.brandColor} size="sm" className="w-9 h-9 rounded-lg text-xs" />
           <div className="flex-1 min-w-0">
             <div className="font-display font-bold truncate text-sm">{brand.name}</div>
             <div className="text-[10px] text-secondary-foreground/60 uppercase tracking-[0.15em] font-semibold">{brand.role}</div>
@@ -113,7 +114,7 @@ export const AppShell = ({ brand, nav, children }: AppShellProps) => {
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-secondary/95 backdrop-blur text-secondary-foreground border-t border-sidebar-border">
         <div className="grid grid-flow-col auto-cols-fr">
-          {nav.slice(0, 5).map((item) => (
+          {primaryNav.map((item) => (
             <NavLink
               key={item.to}
               to={resolve(item.to)}
@@ -134,8 +135,46 @@ export const AppShell = ({ brand, nav, children }: AppShellProps) => {
               )}
             </NavLink>
           ))}
+          {overflowNav.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowMore((prev) => !prev)}
+              className={cn(
+                "relative flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-semibold transition-colors",
+                showMore ? "text-primary" : "text-secondary-foreground/60"
+              )}
+            >
+              {showMore && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-b-full bg-primary" />}
+              <MoreHorizontal className={cn("w-5 h-5 transition-transform", showMore && "scale-110")} />
+              <span className="truncate max-w-full px-1">More</span>
+            </button>
+          )}
         </div>
       </nav>
+
+      {showMore && overflowNav.length > 0 && (
+        <div className="md:hidden fixed inset-0 z-30 bg-black/30" onClick={() => setShowMore(false)}>
+          <div className="absolute bottom-16 inset-x-3 rounded-2xl border border-border bg-card p-2 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            {overflowNav.map((item) => (
+              <NavLink
+                key={item.to}
+                to={resolve(item.to)}
+                end
+                onClick={() => setShowMore(false)}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                    isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                  )
+                }
+              >
+                <item.icon className="w-4 h-4" />
+                <span>{item.label}</span>
+              </NavLink>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

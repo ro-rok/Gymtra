@@ -95,6 +95,7 @@ export const apiRequest = async <T>(path: string, options: RequestOptions = {}):
   const response = await fetch(url, {
     method,
     credentials: "include",
+    cache: "no-store",
     signal,
     headers: {
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),

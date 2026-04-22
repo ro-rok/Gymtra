@@ -14,7 +14,7 @@ const TrainerLayout = () => {
   const { gym, loading } = useTenant();
   if (loading || !gym) return null;
   return (
-    <AppShell brand={{ name: gym.name, logo: gym.logo, role: "Trainer" }} nav={nav}>
+    <AppShell brand={{ name: gym.name, logo: gym.logo, role: "Trainer", brandColor: gym.brandColor }} nav={nav}>
       <Outlet />
     </AppShell>
   );

@@ -36,27 +36,28 @@ const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center gradient-hero text-secondary-foreground p-6 relative overflow-hidden">
-      <PageMeta title="Super Admin Login | GymOS" description="Platform administration login for GymOS." canonicalPath="/admin/login" noindex />
-      <div className="absolute inset-0 gradient-mesh opacity-50" />
-      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-accent/30 blur-3xl" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-primary/20 blur-3xl" />
+    <div className="min-h-screen flex items-center justify-center gradient-hero text-secondary-foreground p-8 relative overflow-hidden">
+      <PageMeta title="Super Admin Login | Gymtra" description="Platform administration login for Gymtra." canonicalPath="/admin/login" noindex />
+      <div className="absolute inset-0 gradient-mesh opacity-70" />
+      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-accent/16 blur-3xl" />
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-primary/14 blur-3xl" />
+      <div className="ambient-glow w-[24rem] h-[24rem] -bottom-28 -left-20 opacity-15" />
 
       <Link to="/" className="absolute top-6 left-6 inline-flex items-center gap-2 text-sm text-secondary-foreground/70 hover:text-secondary-foreground transition-colors">
         <ArrowLeft className="w-4 h-4" /> Back
       </Link>
 
-      <div className="relative w-full max-w-sm bg-card text-card-foreground rounded-2xl p-8 shadow-2xl border border-border animate-scale-in">
+      <div className="relative w-full max-w-sm bg-card text-card-foreground rounded-2xl p-9 shadow-2xl border border-border animate-scale-in">
         <div className="w-14 h-14 rounded-2xl gradient-accent flex items-center justify-center mb-5 shadow-lg">
           <Shield className="w-7 h-7 text-accent-foreground" />
         </div>
         <h1 className="text-2xl font-display font-bold">Super Admin</h1>
-        <p className="text-sm text-muted-foreground mt-1">Platform team access only.</p>
+        <p className="text-sm text-muted-foreground mt-2">Platform team access only.</p>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+        <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
           <div>
             <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider">Email</Label>
-            <Input id="email" className="mt-1.5 h-11" placeholder="admin@gymos.app"
+            <Input id="email" className="mt-1.5 h-11" placeholder="admin@gymtra.app"
               value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
           <div>
@@ -81,14 +82,14 @@ const AdminLogin = () => {
               </button>
             </div>
           </div>
-          <Button type="submit" className="w-full h-11 font-semibold gap-2" disabled={loading || authLoading}>
+          <Button type="submit" className="w-full h-11 font-semibold gap-2 cta-glow hover:shadow-glow" disabled={loading || authLoading}>
             {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</> : "Continue"}
           </Button>
         </form>
 
-        <button onClick={() => { setEmail("admin@gymos.app"); setPassword("admin123"); }}
+        <button onClick={() => { setEmail("admin@gymtra.app"); setPassword("admin123"); }}
           className="mt-5 w-full text-xs text-muted-foreground hover:text-primary transition-colors text-center py-2 rounded-lg border border-dashed border-border hover:border-primary/40">
-          🔑 Use demo · admin@gymos.app
+          🔑 Use demo · admin@gymtra.app
         </button>
       </div>
     </div>

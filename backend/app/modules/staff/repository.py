@@ -12,6 +12,17 @@ class StaffRepository:
     def list_staff_users(self, gym_id: ObjectId) -> list[dict]:
         return list(self.db.users.find({"gym_id": gym_id, "role": {"$in": ["owner", "trainer"]}}).sort("name", 1))
 
+    def get_user_by_email(self, gym_id: ObjectId, email: str) -> dict | None:
+        return self.db.users.find_one({"gym_id": gym_id, "email": email.lower().strip()})
+
+    def get_user_by_phone(self, gym_id: ObjectId, phone: str) -> dict | None:
+        return self.db.users.find_one({"gym_id": gym_id, "phone": phone.strip()})
+
+    def create_staff_user(self, payload: dict) -> dict:
+        result = self.db.users.insert_one(payload)
+        payload["_id"] = result.inserted_id
+        return payload
+
     def upsert_staff_profile(self, gym_id: ObjectId, user_id: ObjectId, salary: float | None = None, payroll_status: str | None = None) -> dict:
         now = datetime.now(timezone.utc)
         set_payload: dict = {"updated_at": now}

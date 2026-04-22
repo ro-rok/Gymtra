@@ -100,6 +100,10 @@ export interface DietTemplate {
   meals: number;
   tags: string[];
   mealPlan?: DietMeal[];
+  macros?: { protein?: number; carbs?: number; fat?: number };
+  notes?: string;
+  preferenceTags?: string[];
+  allergyTags?: string[];
   createdBy: string;
 }
 

@@ -12,3 +12,6 @@ class TenantsRepository:
         branding = self.db.tenant_branding.find_one({"gym_id": gym["_id"]})
         return gym, branding
 
+    def update_gym_logo(self, gym_id, logo_url: str) -> None:
+        self.db.gyms.update_one({"_id": gym_id}, {"$set": {"logo": logo_url}})
+

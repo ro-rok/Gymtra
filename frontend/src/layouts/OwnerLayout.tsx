@@ -20,7 +20,7 @@ const OwnerLayout = () => {
   const { gym, loading } = useTenant();
   if (loading || !gym) return null;
   return (
-    <AppShell brand={{ name: gym.name, logo: gym.logo, role: "Owner" }} nav={nav}>
+    <AppShell brand={{ name: gym.name, logo: gym.logo, role: "Owner", brandColor: gym.brandColor }} nav={nav}>
       <Outlet />
     </AppShell>
   );

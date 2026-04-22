@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     vapid_private_key: str = ""
     vapid_public_key: str = ""
     vapid_subject: str = "mailto:admin@gymtra.local"
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
+    cloudinary_upload_folder: str = "gymtra"
 
     @field_validator("frontend_origins", mode="before")
     @classmethod

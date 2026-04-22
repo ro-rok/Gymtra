@@ -13,6 +13,16 @@ interface KpiCardProps {
   animated?: boolean;
 }
 
+interface KpiCardSkeletonProps {
+  className?: string;
+}
+
+interface KpiCardSkeletonGridProps {
+  count?: number;
+  className?: string;
+  cardClassName?: string;
+}
+
 const accentMap = {
   primary: "bg-primary/10 text-primary",
   accent: "bg-accent/10 text-accent",
@@ -53,3 +63,19 @@ export const KpiCard = ({ label, value, hint, icon: Icon, trend, trendValue, acc
     </div>
   );
 };
+
+export const KpiCardSkeleton = ({ className }: KpiCardSkeletonProps) => (
+  <div className={cn("rounded-2xl border border-border bg-card p-5 animate-pulse", className)}>
+    <div className="h-3 w-24 rounded bg-muted" />
+    <div className="h-8 w-20 rounded bg-muted mt-3" />
+    <div className="h-3 w-28 rounded bg-muted mt-4" />
+  </div>
+);
+
+export const KpiCardSkeletonGrid = ({ count = 4, className, cardClassName }: KpiCardSkeletonGridProps) => (
+  <div className={className}>
+    {Array.from({ length: count }).map((_, i) => (
+      <KpiCardSkeleton key={`kpi-skeleton-${i}`} className={cardClassName} />
+    ))}
+  </div>
+);

@@ -36,9 +36,9 @@ export interface MetadataInput {
 }
 
 export const applyMetadata = (input: MetadataInput) => {
-  const title = input.title || "GymOS";
+  const title = input.title || "Gymtra";
   const description =
-    input.description || "Find your gym, track progress, and manage members with GymOS.";
+    input.description || "Find your gym, track progress, and manage members with Gymtra.";
   const canonical = `${getBaseUrl()}${input.canonicalPath || "/"}`;
   document.title = title;
   setMetaTag('meta[name="description"]', "content", description);

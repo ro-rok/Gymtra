@@ -8,6 +8,9 @@ interface LoginResponse {
 export const loginRequest = (payload: { email: string; password: string; gymSlug?: string }) =>
   apiPost<LoginResponse>("/api/v1/auth/login", payload);
 
+export const loginPhoneRequest = (payload: { phone: string; password: string; gymSlug?: string }) =>
+  apiPost<LoginResponse>("/api/v1/auth/login-phone", payload);
+
 export const meRequest = () => apiGet<AuthUser>("/api/v1/auth/me");
 
 export const logoutRequest = () => apiPost<unknown>("/api/v1/auth/logout", undefined, { skipAuthHandling: true });

@@ -5,16 +5,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-all duration-400 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-neon/70 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.995] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-primary-neon text-primary-foreground shadow-[0_10px_24px_-18px_hsl(var(--primary-neon)/0.42)] hover:bg-primary-neon-hover hover:shadow-[0_12px_28px_-18px_hsl(var(--primary-neon)/0.48)]",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        outline: "border border-white/15 bg-white/[0.02] text-text-primary hover:border-primary-neon/40 hover:bg-white/[0.06] hover:text-text-primary",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/85",
+        ghost: "border border-transparent text-text-secondary hover:border-white/10 hover:bg-white/[0.04] hover:text-text-primary",
+        link: "text-primary-neon underline-offset-4 hover:text-primary-neon-soft hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",

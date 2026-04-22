@@ -10,7 +10,7 @@ const nav = [
 ];
 
 const AdminLayout = () => (
-  <AppShell brand={{ name: "GymOS Console", logo: "🛡️", role: "Super Admin" }} nav={nav}>
+  <AppShell brand={{ name: "Gymtra Console", logo: "🛡️", role: "Super Admin" }} nav={nav}>
     <Outlet />
   </AppShell>
 );

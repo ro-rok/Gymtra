@@ -7,6 +7,12 @@ class LoginRequest(BaseModel):
     gymSlug: str | None = None
 
 
+class LoginPhoneRequest(BaseModel):
+    phone: str
+    password: str
+    gymSlug: str | None = None
+
+
 class AuthUserResponse(BaseModel):
     id: str
     email: EmailStr

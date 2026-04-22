@@ -14,7 +14,20 @@ const DietTemplates = () => {
   const { toast } = useToast();
   const gymId = user?.gymId || "1";
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", goal: "loss" as "loss" | "gain" | "maintain", calories: "", meals: "4", tags: "" });
+  const [form, setForm] = useState({
+    name: "",
+    goal: "loss" as "loss" | "gain" | "maintain",
+    calories: "",
+    meals: "4",
+    tags: "",
+    notes: "",
+    preferenceTags: "",
+    allergyTags: "",
+    protein: "",
+    carbs: "",
+    fat: "",
+    mealPlan: [{ time: "", name: "", cal: "", macros: "" }],
+  });
   const [templates, setTemplates] = useState<DietTemplate[]>([]);
 
   useEffect(() => {
@@ -25,13 +38,27 @@ const DietTemplates = () => {
     await createDietTemplateRequest({
       gymId, name: form.name, goal: form.goal, calories: Number(form.calories),
       meals: Number(form.meals), tags: form.tags.split(",").map(t => t.trim()).filter(Boolean),
+      notes: form.notes || undefined,
+      preferenceTags: form.preferenceTags.split(",").map(t => t.trim()).filter(Boolean),
+      allergyTags: form.allergyTags.split(",").map(t => t.trim()).filter(Boolean),
+      macros: {
+        protein: form.protein ? Number(form.protein) : undefined,
+        carbs: form.carbs ? Number(form.carbs) : undefined,
+        fat: form.fat ? Number(form.fat) : undefined,
+      },
+      mealPlan: form.mealPlan
+        .filter((m) => m.time && m.name)
+        .map((m) => ({ time: m.time, name: m.name, cal: Number(m.cal || 0), macros: m.macros })),
       createdBy: user?.id || "",
     });
     const latest = await listDietTemplatesRequest();
     setTemplates(latest);
     toast({ title: "Diet template created" });
     setShowForm(false);
-    setForm({ name: "", goal: "loss", calories: "", meals: "4", tags: "" });
+    setForm({
+      name: "", goal: "loss", calories: "", meals: "4", tags: "", notes: "", preferenceTags: "", allergyTags: "",
+      protein: "", carbs: "", fat: "", mealPlan: [{ time: "", name: "", cal: "", macros: "" }],
+    });
   };
 
   return (
@@ -46,6 +73,26 @@ const DietTemplates = () => {
           <div><Label>Calories</Label><Input className="mt-1" type="number" value={form.calories} onChange={e => setForm({ ...form, calories: e.target.value })} /></div>
           <div><Label>Meals/day</Label><Input className="mt-1" type="number" value={form.meals} onChange={e => setForm({ ...form, meals: e.target.value })} /></div>
           <div><Label>Tags (comma-sep)</Label><Input className="mt-1" value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} placeholder="veg, high-protein" /></div>
+          <div><Label>Notes</Label><Input className="mt-1" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="General instructions" /></div>
+          <div><Label>Preference tags</Label><Input className="mt-1" value={form.preferenceTags} onChange={e => setForm({ ...form, preferenceTags: e.target.value })} placeholder="veg, jain" /></div>
+          <div><Label>Allergy tags</Label><Input className="mt-1" value={form.allergyTags} onChange={e => setForm({ ...form, allergyTags: e.target.value })} placeholder="nuts, lactose" /></div>
+          <div><Label>Protein (g)</Label><Input className="mt-1" type="number" value={form.protein} onChange={e => setForm({ ...form, protein: e.target.value })} /></div>
+          <div><Label>Carbs (g)</Label><Input className="mt-1" type="number" value={form.carbs} onChange={e => setForm({ ...form, carbs: e.target.value })} /></div>
+          <div><Label>Fat (g)</Label><Input className="mt-1" type="number" value={form.fat} onChange={e => setForm({ ...form, fat: e.target.value })} /></div>
+          <div className="sm:col-span-3">
+            <Label>Meal plan</Label>
+            <div className="mt-2 space-y-2">
+              {form.mealPlan.map((meal, idx) => (
+                <div key={idx} className="grid grid-cols-4 gap-2">
+                  <Input placeholder="Time" value={meal.time} onChange={(e) => setForm({ ...form, mealPlan: form.mealPlan.map((m, i) => i === idx ? { ...m, time: e.target.value } : m) })} />
+                  <Input placeholder="Meal name" value={meal.name} onChange={(e) => setForm({ ...form, mealPlan: form.mealPlan.map((m, i) => i === idx ? { ...m, name: e.target.value } : m) })} />
+                  <Input placeholder="Calories" type="number" value={meal.cal} onChange={(e) => setForm({ ...form, mealPlan: form.mealPlan.map((m, i) => i === idx ? { ...m, cal: e.target.value } : m) })} />
+                  <Input placeholder="Macros text" value={meal.macros} onChange={(e) => setForm({ ...form, mealPlan: form.mealPlan.map((m, i) => i === idx ? { ...m, macros: e.target.value } : m) })} />
+                </div>
+              ))}
+              <Button type="button" variant="outline" onClick={() => setForm({ ...form, mealPlan: [...form.mealPlan, { time: "", name: "", cal: "", macros: "" }] })}>Add meal row</Button>
+            </div>
+          </div>
           <div className="flex items-end"><Button onClick={handleAdd} disabled={!form.name}>Save</Button></div>
         </div>
       )}

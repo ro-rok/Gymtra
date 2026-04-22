@@ -13,9 +13,9 @@ import {
 } from "./mock-data";
 
 // ── Helpers ──
-const store = <T>(key: string, data: T) => localStorage.setItem(`gymos_${key}`, JSON.stringify(data));
+const store = <T>(key: string, data: T) => localStorage.setItem(`gymtra_${key}`, JSON.stringify(data));
 const load = <T>(key: string, fallback: T): T => {
-  try { const d = localStorage.getItem(`gymos_${key}`); return d ? JSON.parse(d) : fallback; }
+  try { const d = localStorage.getItem(`gymtra_${key}`); return d ? JSON.parse(d) : fallback; }
   catch { return fallback; }
 };
 const uid = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -103,13 +103,13 @@ seedIfNeeded();
 // ── One-time migration: normalize all member phones to +919654102758 ──
 function migratePhonesV1() {
   const KEY = "migration_phones_v1";
-  if (localStorage.getItem(`gymos_${KEY}`)) return;
+  if (localStorage.getItem(`gymtra_${KEY}`)) return;
   const members = load<MemberProfile[]>("members", []);
   if (members.length) {
     const updated = members.map(m => ({ ...m, phone: "+919654102758" }));
     store("members", updated);
   }
-  localStorage.setItem(`gymos_${KEY}`, "1");
+  localStorage.setItem(`gymtra_${KEY}`, "1");
 }
 migratePhonesV1();
 

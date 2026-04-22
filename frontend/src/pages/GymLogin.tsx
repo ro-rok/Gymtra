@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/contexts/TenantContext";
 import { PageMeta } from "@/components/PageMeta";
+import { GymIdentity } from "@/components/GymIdentity";
 
 const demoAccounts = [
   { role: "Owner", email: "owner@ironparadise.com", password: "owner123", icon: Crown, color: "primary", desc: "Full operational control" },
@@ -18,13 +19,16 @@ const demoAccounts = [
 const GymLogin = () => {
   const { gymSlug } = useParams();
   const navigate = useNavigate();
-  const { login, user, loading: authLoading } = useAuth();
+  const { login, loginWithPhone, user, loading: authLoading } = useAuth();
   const { gym, loading: tenantLoading, error: tenantError, invalidTenant } = useTenant();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [loginMode, setLoginMode] = useState<"phone" | "email">("phone");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const phoneError = loginMode === "phone" && phone.trim() && !/^\+?[0-9]{10,15}$/.test(phone.trim());
 
   useEffect(() => {
     if (user && user.gymSlug === gymSlug) {
@@ -36,8 +40,12 @@ const GymLogin = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!gymSlug) return;
+    if (loginMode === "phone" && phoneError) return;
     setLoading(true);
-    const result = await login(email, password, gymSlug);
+    const result =
+      loginMode === "phone"
+        ? await loginWithPhone(phone, password, gymSlug)
+        : await login(email, password, gymSlug);
     setLoading(false);
     if (result.success) {
       const role = result.user?.role;
@@ -48,12 +56,12 @@ const GymLogin = () => {
     }
   };
 
-  const useDemo = (e: string, p: string) => { setEmail(e); setPassword(p); };
+  const useDemo = (e: string, p: string) => { setEmail(e); setPassword(p); setLoginMode("email"); };
 
   if (tenantLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <PageMeta title="Gym Login | GymOS" canonicalPath={`/${gymSlug || ""}`} noindex />
+        <PageMeta title="Gym Login | Gymtra" canonicalPath={`/${gymSlug || ""}`} noindex />
         <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="w-4 h-4 animate-spin" />
           Loading gym details...
@@ -65,7 +73,7 @@ const GymLogin = () => {
   if (invalidTenant || !gym) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
-        <PageMeta title="Gym Not Found | GymOS" canonicalPath={`/${gymSlug || ""}`} noindex />
+        <PageMeta title="Gym Not Found | Gymtra" canonicalPath={`/${gymSlug || ""}`} noindex />
         <div className="w-full max-w-md rounded-2xl border bg-card p-6 text-card-foreground">
           <h1 className="text-xl font-semibold">Invalid gym link</h1>
           <p className="text-sm text-muted-foreground mt-2">
@@ -80,29 +88,28 @@ const GymLogin = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background relative overflow-hidden">
+      <div className="ambient-glow w-[22rem] h-[22rem] -top-32 -left-24 opacity-15" />
       <PageMeta
         title={gym.metaTitle || `${gym.name} | Gym Login`}
-        description={gym.metaDescription || `Sign in to ${gym.name} on GymOS.`}
+        description={gym.metaDescription || `Sign in to ${gym.name} on Gymtra.`}
         canonicalPath={`/${gym.slug}`}
       />
       {/* Brand panel */}
       <div className="lg:w-1/2 relative overflow-hidden gradient-hero text-secondary-foreground p-8 md:p-12 lg:p-16 flex flex-col justify-between min-h-[40vh] lg:min-h-screen">
-        <div className="absolute inset-0 gradient-mesh opacity-50" />
-        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/25 blur-3xl" />
-        <div className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full bg-accent/20 blur-3xl" />
+        <div className="absolute inset-0 gradient-mesh opacity-70" />
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/16 blur-3xl" />
+        <div className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full bg-accent/14 blur-3xl" />
 
         <Link to="/" className="relative inline-flex items-center gap-2 text-sm text-secondary-foreground/70 hover:text-secondary-foreground transition-colors w-fit">
           <ArrowLeft className="w-4 h-4" /> All gyms
         </Link>
 
-        <div className="relative animate-fade-in-up">
-          <div className="w-20 h-20 rounded-3xl glass flex items-center justify-center text-5xl mb-6 shadow-glow">
-            {gym.logo}
-          </div>
+        <div className="relative animate-fade-in-up max-w-2xl">
+          <GymIdentity name={gym.name} logo={gym.logo} brandColor={gym.brandColor} size="lg" className="mb-6 shadow-glow bg-white/10" />
           <h1 className="text-4xl md:text-5xl font-display font-bold leading-tight">{gym.name}</h1>
-          <p className="text-secondary-foreground/70 mt-3 text-lg">{gym.tagline}</p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <p className="text-secondary-foreground/70 mt-4 text-lg max-w-2xl">{gym.tagline}</p>
+          <div className="mt-10 flex flex-wrap gap-3.5">
             <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full glass">
               <Dumbbell className="w-3.5 h-3.5 text-primary" /> {gym.members} members
             </span>
@@ -115,21 +122,34 @@ const GymLogin = () => {
           </div>
         </div>
 
-        <div className="relative text-xs text-secondary-foreground/40 hidden lg:block">Powered by GymOS · gymos.app</div>
+        <div className="relative text-xs text-secondary-foreground/40 hidden lg:block">Powered by Gymtra · gymtra.app</div>
       </div>
 
       {/* Login form */}
-      <div className="lg:w-1/2 flex items-center justify-center p-6 md:p-12 bg-background">
+      <div className="lg:w-1/2 flex items-center justify-center p-8 md:p-14 bg-background">
         <div className="w-full max-w-sm">
           <h2 className="text-3xl font-display font-bold">Welcome back 👋</h2>
-          <p className="text-sm text-muted-foreground mt-1.5">Sign in to continue your journey at {gym.name}.</p>
+          <p className="text-sm text-muted-foreground mt-2.5">Sign in to continue your journey at {gym.name}.</p>
 
-          <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider">Email</Label>
-              <Input id="email" type="email" placeholder="you@email.com" className="mt-1.5 h-11"
-                value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <form className="mt-9 space-y-5" onSubmit={handleSubmit}>
+            <div className="inline-flex rounded-lg border border-border p-1 text-xs">
+              <button type="button" className={`px-3 py-1.5 rounded-md ${loginMode === "phone" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`} onClick={() => setLoginMode("phone")}>Phone</button>
+              <button type="button" className={`px-3 py-1.5 rounded-md ${loginMode === "email" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`} onClick={() => setLoginMode("email")}>Email</button>
             </div>
+            {loginMode === "phone" ? (
+              <div>
+                <Label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider">Phone</Label>
+                <Input id="phone" type="tel" placeholder="+919876543210" className="mt-1.5 h-11"
+                  value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                {phoneError && <p className="mt-1 text-xs text-destructive">Enter a valid phone number.</p>}
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider">Email</Label>
+                <Input id="email" type="email" placeholder="you@email.com" className="mt-1.5 h-11"
+                  value={email} onChange={(e) => setEmail(e.target.value)} required />
+              </div>
+            )}
             <div>
               <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider">Password</Label>
               <div className="relative mt-1.5">
@@ -152,7 +172,7 @@ const GymLogin = () => {
                 </button>
               </div>
             </div>
-            <Button type="submit" className="w-full h-11 font-semibold gap-2" disabled={loading || authLoading}>
+            <Button type="submit" className="w-full h-11 font-semibold gap-2 cta-glow hover:shadow-glow" disabled={loading || authLoading || phoneError}>
               {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</> : "Sign in"}
             </Button>
           </form>

@@ -22,7 +22,7 @@ const MemberLayout = () => {
   }, [registerPushSubscription]);
   if (loading || !gym) return null;
   return (
-    <AppShell brand={{ name: gym.name, logo: gym.logo, role: "Member" }} nav={nav}>
+    <AppShell brand={{ name: gym.name, logo: gym.logo, role: "Member", brandColor: gym.brandColor }} nav={nav}>
       <Outlet />
     </AppShell>
   );

@@ -1,13 +1,14 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import type { AuthUser, Role } from "@/lib/types";
 import { ApiError, setAuthFailureHandler } from "@/lib/api-client";
-import { loginRequest, logoutRequest, meRequest } from "@/lib/auth-api";
+import { loginPhoneRequest, loginRequest, logoutRequest, meRequest } from "@/lib/auth-api";
 import { unregisterPushSubscription } from "@/lib/push-api";
 
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string, gymSlug?: string) => Promise<{ success: boolean; error?: string; user?: AuthUser }>;
+  loginWithPhone: (phone: string, password: string, gymSlug?: string) => Promise<{ success: boolean; error?: string; user?: AuthUser }>;
   logout: () => Promise<void>;
   isRole: (role: Role) => boolean;
 }
@@ -65,6 +66,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  const loginWithPhone = useCallback(async (phone: string, password: string, gymSlug?: string) => {
+    try {
+      const response = await loginPhoneRequest({ phone, password, gymSlug });
+      setUser(response.user);
+      return { success: true, user: response.user };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return { success: false, error: error.message };
+      }
+      return { success: false, error: "Unable to sign in right now. Please try again." };
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await logoutRequest();
@@ -78,7 +92,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isRole = useCallback((role: Role) => user?.role === role, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isRole }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithPhone, logout, isRole }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Palette, IndianRupee, Bell, Save, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/contexts/TenantContext";
+import { signTenantLogoUploadRequest, updateTenantLogoRequest } from "@/lib/tenant-api";
 
 const Section = ({ icon: Icon, title, hint, children }: any) => (
   <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -35,6 +37,49 @@ const Settings = () => {
   const { gym } = useTenant();
   const { toast } = useToast();
   const save = (what: string) => () => toast({ title: `${what} saved`, description: "Changes are live for your gym." });
+  const [logoPreview, setLogoPreview] = useState<string>(gym?.logo || "");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const handleLogoSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file type", description: "Please choose an image file.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Please upload an image under 4 MB.", variant: "destructive" });
+      return;
+    }
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const handleLogoUpload = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const fileInput = event.currentTarget.querySelector<HTMLInputElement>('input[type="file"]');
+    const file = fileInput?.files?.[0];
+    if (!gymSlug || !file) return;
+    setUploadingLogo(true);
+    try {
+      const signed = await signTenantLogoUploadRequest(gymSlug, { fileName: file.name, contentType: file.type });
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("api_key", signed.apiKey);
+      formData.append("timestamp", String(signed.timestamp));
+      formData.append("signature", signed.signature);
+      formData.append("folder", signed.folder);
+      formData.append("public_id", signed.publicId);
+      const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${signed.cloudName}/image/upload`, { method: "POST", body: formData });
+      const cloudData = await cloudRes.json();
+      if (!cloudRes.ok || !cloudData.secure_url) throw new Error("Cloudinary upload failed");
+      await updateTenantLogoRequest(gymSlug, cloudData.secure_url);
+      toast({ title: "Logo updated", description: "Brand logo is now live." });
+    } catch {
+      toast({ title: "Logo upload failed", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   return (
     <>
@@ -44,7 +89,15 @@ const Settings = () => {
         <Section icon={Building2} title="Brand identity" hint="What members see across the app.">
           <Field label="Display name"><Input defaultValue={gym?.name || gymSlug} /></Field>
           <Field label="Tagline"><Input defaultValue={gym?.tagline || ""} /></Field>
-          <Field label="Logo emoji / URL" hint="An emoji works great. Image upload coming soon."><Input defaultValue={gym?.logo || "🏋️"} /></Field>
+          <Field label="Logo upload" hint="Image upload uses signed Cloudinary request.">
+            <form onSubmit={handleLogoUpload} className="space-y-3">
+              <Input type="file" accept="image/*" onChange={handleLogoSelect} />
+              {logoPreview && <img src={logoPreview} alt="Gym logo preview" className="h-16 w-16 rounded-xl border border-border object-cover" />}
+              <Button type="submit" disabled={uploadingLogo} className="gap-2">
+                <Save className="w-4 h-4" /> {uploadingLogo ? "Uploading..." : "Upload logo"}
+              </Button>
+            </form>
+          </Field>
           <Field label="Primary color (HSL)" hint='Tailwind format, e.g. "88 86% 52%".'><Input defaultValue="88 86% 52%" /></Field>
           <Button onClick={save("Branding")} className="gap-2"><Save className="w-4 h-4" /> Save branding</Button>
         </Section>

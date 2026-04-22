@@ -8,23 +8,42 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Users } from "lucide-react";
-import { listStaffRequest } from "@/lib/staff-api";
+import { createTrainerRequest, listStaffRequest } from "@/lib/staff-api";
 import type { StaffMember } from "@/lib/types";
 
 const Staff = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", role: "Trainer", salary: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", role: "trainer", salary: "" });
+  const [saving, setSaving] = useState(false);
   const [allStaff, setAllStaff] = useState<StaffMember[]>([]);
   useEffect(() => {
     listStaffRequest().then(setAllStaff).catch(() => setAllStaff([]));
   }, []);
 
-  const handleAdd = () => {
-    toast({ title: "Staff is managed from user accounts in this phase." });
-    setShowForm(false);
-    setForm({ name: "", role: "Trainer", salary: "" });
+  const handleAdd = async () => {
+    if (!form.name || !form.email || !form.phone || !form.password || !form.salary) return;
+    setSaving(true);
+    try {
+      await createTrainerRequest({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        password: form.password,
+        role: "trainer",
+        salary: Number(form.salary),
+      });
+      const latest = await listStaffRequest();
+      setAllStaff(latest);
+      toast({ title: "Trainer created successfully" });
+      setShowForm(false);
+      setForm({ name: "", email: "", phone: "", password: "", role: "trainer", salary: "" });
+    } catch (error) {
+      toast({ title: "Could not create trainer", description: "Please check details and try again.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -33,12 +52,17 @@ const Staff = () => {
         action={<Button className="gap-2" onClick={() => setShowForm(!showForm)}><Plus className="w-4 h-4" /> Add Staff</Button>} />
 
       {showForm && (
-        <div className="rounded-2xl border border-border bg-card p-5 mb-6 grid sm:grid-cols-4 gap-3 animate-scale-in">
+        <div className="rounded-2xl border border-border bg-card p-5 mb-6 grid sm:grid-cols-3 gap-3 animate-scale-in">
           <div><Label>Name</Label><Input className="mt-1" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-          <div><Label>Role</Label><Input className="mt-1" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} /></div>
+          <div><Label>Email</Label><Input className="mt-1" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+          <div><Label>Phone</Label><Input className="mt-1" type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+          <div><Label>Password</Label><Input className="mt-1" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></div>
+          <div><Label>Role</Label><Input className="mt-1" value="trainer" disabled /></div>
           <div><Label>Salary (₹)</Label><Input className="mt-1" type="number" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} /></div>
           <div className="flex items-end gap-2">
-            <Button onClick={handleAdd} disabled={!form.name}>Save</Button>
+            <Button onClick={handleAdd} disabled={saving || !form.name || !form.email || !form.phone || !form.password || !form.salary}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
             <Button variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
           </div>
         </div>

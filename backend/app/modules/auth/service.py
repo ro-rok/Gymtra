@@ -45,6 +45,24 @@ class AuthService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Gym slug is required")
         return user
 
+    def login_phone(self, *, phone: str, password: str, gym_slug: str | None):
+        normalized_phone = phone.strip()
+        if gym_slug:
+            gym = self.public_repo.get_gym_by_slug(gym_slug)
+            if not gym:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Gym not found")
+            user = self.repo.get_user_by_phone(normalized_phone, gym_id=gym["_id"])
+            user = self._validate_active_user(user, password)
+            if user.get("role") == "super_admin":
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Super admin login is global")
+            return user
+
+        user = self.repo.get_user_by_phone(normalized_phone, role="super_admin")
+        user = self._validate_active_user(user, password)
+        if user.get("role") != "super_admin":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Gym slug is required")
+        return user
+
     def create_refresh_session(self, *, user: dict, user_agent: str | None = None) -> str:
         now = datetime.now(timezone.utc)
         refresh_token = generate_refresh_token()
