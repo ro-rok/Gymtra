@@ -20,3 +20,12 @@ export const updateTenantLogoRequest = (slug: string, logoUrl: string) =>
     `/api/v1/tenants/${encodeURIComponent(slug)}/branding/logo`,
     { logoUrl },
   );
+
+export const updateTenantPricingRequest = (
+  slug: string,
+  payload: { monthly: number; quarterly: number; halfYearly: number },
+) =>
+  apiPatch<{ gymId: string; slug: string; planPricing: { monthly: number; quarterly: number; halfYearly: number } }>(
+    `/api/v1/tenants/${encodeURIComponent(slug)}/pricing`,
+    payload,
+  );

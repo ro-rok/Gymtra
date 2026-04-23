@@ -13,6 +13,7 @@ import {
   upsertDailyTasksRequest,
 } from "@/lib/attendance-api";
 import { listMembershipsRequest } from "@/lib/membership-api";
+import { getISTDateString } from "@/lib/datetime";
 
 const Task = ({ icon: Icon, label, hint, done, onToggle, disabled }: any) => (
   <button
@@ -45,7 +46,7 @@ const Task = ({ icon: Icon, label, hint, done, onToggle, disabled }: any) => (
 const MemberDashboard = () => {
   const { gymSlug } = useParams();
   const { user } = useAuth();
-  const today = new Date().toISOString().split("T")[0];
+  const today = getISTDateString();
   const memberId = user?.id || "";
   const [membership, setMembership] = useState<any | null>(null);
   useEffect(() => {

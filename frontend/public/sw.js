@@ -52,9 +52,16 @@ self.addEventListener("fetch", (event) => {
       if (cached) return cached;
       return fetch(event.request).catch(() => {
         if (event.request.mode === "navigate") {
-          return caches.match(OFFLINE_PAGE);
+          return caches.match(OFFLINE_PAGE).then(
+            (offlinePage) =>
+              offlinePage ||
+              new Response("Offline", {
+                status: 503,
+                headers: { "Content-Type": "text/plain; charset=utf-8" },
+              }),
+          );
         }
-        return cached;
+        return new Response("", { status: 504, statusText: "Gateway Timeout" });
       });
     })
   );

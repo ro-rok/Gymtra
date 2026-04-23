@@ -10,6 +10,24 @@ class TenantBrandingResponse(BaseModel):
     brandColor: str | None = None
 
 
+class TenantPlanPricing(BaseModel):
+    monthly: float
+    quarterly: float
+    halfYearly: float
+
+
+class TenantPricingUpdateRequest(BaseModel):
+    monthly: float
+    quarterly: float
+    halfYearly: float
+
+
+class TenantPricingResponse(BaseModel):
+    gymId: str
+    slug: str
+    planPricing: TenantPlanPricing
+
+
 class TenantLogoUploadSignRequest(BaseModel):
     fileName: str
     contentType: str

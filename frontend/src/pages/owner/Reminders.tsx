@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
 import { listReminderLogsRequest, listReminderQueueRequest, sendReminderRequest } from "@/lib/reminder-api";
+import { approvePasswordResetRequest, listPendingPasswordResetRequests } from "@/lib/auth-api";
 
 const TYPE_META: Record<ReminderType, { label: string; color: string; emoji: string }> = {
   expiry: { label: "Expiring soon", color: "warning", emoji: "⏳" },
@@ -24,11 +25,14 @@ const Reminders = () => {
 
   const [items, setItems] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
+  const [pendingPasswordResets, setPendingPasswordResets] = useState<any[]>([]);
+  const [approvingRequestId, setApprovingRequestId] = useState<string | null>(null);
   useEffect(() => {
-    Promise.all([listReminderQueueRequest(), listReminderLogsRequest()])
-      .then(([queueRes, logRes]) => {
+    Promise.all([listReminderQueueRequest(), listReminderLogsRequest(), listPendingPasswordResetRequests()])
+      .then(([queueRes, logRes, resetRes]) => {
         setItems(queueRes.items);
         setHistory(logRes.items);
+        setPendingPasswordResets(resetRes.items);
       })
       .catch(() => undefined);
   }, []);
@@ -50,9 +54,44 @@ const Reminders = () => {
     toast({ title: channel === "whatsapp" ? "Opening WhatsApp…" : "Reminder sent" });
   };
 
+  const handleApproveReset = async (requestId: string) => {
+    setApprovingRequestId(requestId);
+    try {
+      await approvePasswordResetRequest(requestId);
+      const latest = await listPendingPasswordResetRequests();
+      setPendingPasswordResets(latest.items);
+      toast({ title: "Password reset approved", description: "Default reset password has been applied." });
+    } catch (err) {
+      toast({ title: "Approval failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+    } finally {
+      setApprovingRequestId(null);
+    }
+  };
+
   return (
     <>
       <PageHeader title="Reminder Center" subtitle="Pre-drafted, witty, respectful." />
+
+      <SectionCard title="Password reset requests" description={`${pendingPasswordResets.length} pending`}>
+        {pendingPasswordResets.length === 0 ? (
+          <EmptyState icon={CheckCircle2} title="No pending reset requests" description="Member forgot-password requests will appear here." className="border-0 bg-transparent" />
+        ) : (
+          <div className="divide-y divide-border">
+            {pendingPasswordResets.map((req) => (
+              <div key={req.id} className="px-5 py-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm">{req.memberName}</div>
+                  <div className="text-xs text-muted-foreground">{req.memberEmail || req.memberPhone || "No contact"}</div>
+                  <div className="text-[11px] text-muted-foreground mt-1">Requested at {new Date(req.createdAt).toLocaleString()}</div>
+                </div>
+                <Button size="sm" onClick={() => handleApproveReset(req.id)} disabled={approvingRequestId === req.id}>
+                  {approvingRequestId === req.id ? "Approving..." : "Approve"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-4 p-1 rounded-lg bg-muted w-fit">

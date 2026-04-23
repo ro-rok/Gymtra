@@ -5,6 +5,7 @@ from pymongo.database import Database
 
 
 class AdminGymsRepository:
+    DEFAULT_TIMEZONE = "Asia/Kolkata"
     def __init__(self, db: Database):
         self.db = db
 
@@ -31,6 +32,7 @@ class AdminGymsRepository:
             "members_count": 0,
             "is_active": payload.get("is_active", True),
             "seat_count": payload.get("seat_count", 5),
+            "timezone": payload.get("timezone") or self.DEFAULT_TIMEZONE,
             "owner_user_id": payload.get("owner_user_id"),
             "admin_user_id": payload.get("admin_user_id"),
             "created_at": now,

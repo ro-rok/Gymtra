@@ -9,6 +9,7 @@ export interface AuthUser {
   gymId?: string;
   gymSlug?: string;
   avatar?: string;
+  mustChangePassword?: boolean;
 }
 
 // ── Gym / Tenant ──
@@ -28,6 +29,11 @@ export interface Gym {
   brandColor?: string;
   metaTitle?: string;
   metaDescription?: string;
+  planPricing?: {
+    monthly: number;
+    quarterly: number;
+    halfYearly: number;
+  };
 }
 
 // ── Member ──
@@ -61,6 +67,7 @@ export interface Membership {
   id: string;
   memberId: string;
   gymId: string;
+  renewedFromId?: string;
   plan: PlanType;
   amount: number;
   startDate: string;

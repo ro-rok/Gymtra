@@ -11,6 +11,8 @@ from app.modules.tenants.schemas import (
     TenantLogoUpdateRequest,
     TenantLogoUploadSignRequest,
     TenantLogoUploadSignResponse,
+    TenantPricingResponse,
+    TenantPricingUpdateRequest,
 )
 from app.modules.tenants.service import TenantsService
 
@@ -20,6 +22,14 @@ router = APIRouter(prefix="/tenants", tags=["tenants"])
 @router.get("/{slug}/branding", response_model=TenantBrandingResponse)
 def get_tenant_branding(slug: str, db: Annotated[Database, Depends(get_db)]):
     payload = TenantsService(TenantsRepository(db)).get_branding_by_slug(slug)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+    return payload
+
+
+@router.get("/{slug}/pricing", response_model=TenantPricingResponse)
+def get_tenant_pricing(slug: str, db: Annotated[Database, Depends(get_db)]):
+    payload = TenantsService(TenantsRepository(db)).get_pricing_by_slug(slug)
     if not payload:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     return payload
@@ -51,4 +61,18 @@ def update_logo(
     user=Depends(get_current_user),
 ):
     return TenantsService(TenantsRepository(db)).update_logo(actor=user, slug=slug, payload=payload)
+
+
+@router.patch(
+    "/{slug}/pricing",
+    response_model=TenantPricingResponse,
+    dependencies=[Depends(require_roles("owner"))],
+)
+def update_pricing(
+    slug: str,
+    payload: TenantPricingUpdateRequest,
+    db: Annotated[Database, Depends(get_db)],
+    user=Depends(get_current_user),
+):
+    return TenantsService(TenantsRepository(db)).update_pricing(actor=user, slug=slug, payload=payload)
 

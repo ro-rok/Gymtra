@@ -15,3 +15,6 @@ class TenantsRepository:
     def update_gym_logo(self, gym_id, logo_url: str) -> None:
         self.db.gyms.update_one({"_id": gym_id}, {"$set": {"logo": logo_url}})
 
+    def update_gym_pricing(self, gym_id, pricing: dict) -> None:
+        self.db.gyms.update_one({"_id": gym_id}, {"$set": {"membership_pricing": pricing}})
+

@@ -18,8 +18,9 @@ import {
 } from "@/lib/onboarding-state";
 import { track, trackOnboardingDropoff } from "@/lib/tracking";
 import { EASING, UI_TIMING } from "@/lib/ui-timing";
+import { updateTenantPricingRequest } from "@/lib/tenant-api";
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 4;
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 const OwnerOnboarding = () => {
@@ -36,10 +37,9 @@ const OwnerOnboarding = () => {
   const [gymName, setGymName] = useState(saved.gymName || "");
   const [city, setCity] = useState(saved.city || "");
   const [logo, setLogo] = useState(saved.logo || "");
-  const [memberName, setMemberName] = useState(saved.firstMemberName || "");
-  const [phone, setPhone] = useState(saved.firstMemberPhone || "");
   const [monthly, setMonthly] = useState(String(saved.pricing?.monthly || ""));
   const [quarterly, setQuarterly] = useState(String(saved.pricing?.quarterly || ""));
+  const [halfYearly, setHalfYearly] = useState(String(saved.pricing?.halfYearly || ""));
   const [checkinDone, setCheckinDone] = useState(Boolean(saved.checkinSimulated));
   const [error, setError] = useState("");
   const [attemptedNext, setAttemptedNext] = useState(false);
@@ -129,9 +129,9 @@ const OwnerOnboarding = () => {
       gymName,
       city,
       logo,
-      firstMemberName: memberName,
-      firstMemberPhone: phone,
-      pricing: monthly && quarterly ? { monthly: Number(monthly), quarterly: Number(quarterly) } : undefined,
+      pricing: monthly && quarterly && halfYearly
+        ? { monthly: Number(monthly), quarterly: Number(quarterly), halfYearly: Number(halfYearly) }
+        : undefined,
       checkinSimulated: checkinDone,
     });
   };
@@ -144,50 +144,57 @@ const OwnerOnboarding = () => {
       setError("Add your gym name and city to continue.");
       return;
     }
-    if (step === 2 && (!memberName.trim() || phone.trim().length < 10)) {
-      setError("Add one member name and a valid phone number.");
+    if (
+      step === 2
+      && (!monthly || !quarterly || !halfYearly || Number(monthly) <= 0 || Number(quarterly) <= 0 || Number(halfYearly) <= 0)
+    ) {
+      setError("Enter valid monthly, quarterly, and half-yearly pricing.");
       return;
     }
-    if (step === 3 && (!monthly || !quarterly || Number(monthly) <= 0 || Number(quarterly) <= 0)) {
-      setError("Enter valid monthly and quarterly pricing.");
-      return;
-    }
-    if (step === 4 && !checkinDone) {
+    if (step === 3 && !checkinDone) {
       setError("Run one check-in preview to continue.");
       return;
     }
 
     setIsAdvancing(true);
-    await wait(step === 3 ? UI_TIMING.onboarding.pricingSaveMs : UI_TIMING.onboarding.stepAdvanceMs);
+    try {
+      await wait(step === 2 ? UI_TIMING.onboarding.pricingSaveMs : UI_TIMING.onboarding.stepAdvanceMs);
+      if (step === 2) {
+        await updateTenantPricingRequest(gymSlug, {
+          monthly: Number(monthly),
+          quarterly: Number(quarterly),
+          halfYearly: Number(halfYearly),
+        });
+      }
 
-    track("onboarding_step_completed", { gymSlug, step });
-    if (step === 2) track("first_member_added", { gymSlug });
-    if (step === 4) track("first_checkin_simulated", { gymSlug });
+      track("onboarding_step_completed", { gymSlug, step });
+      if (step === 3) track("first_checkin_simulated", { gymSlug });
 
-    if (step === TOTAL_STEPS) {
-      const completedAt = new Date().toISOString();
-      window.sessionStorage.setItem(`onboarding-just-completed:${gymSlug}`, "first-member");
-      saveOnboardingState(gymSlug, {
-        completedAt,
-        currentStep: TOTAL_STEPS,
-        gymName,
-        city,
-        logo,
-        firstMemberName: memberName,
-        firstMemberPhone: phone,
-        pricing: { monthly: Number(monthly), quarterly: Number(quarterly) },
-        checkinSimulated: checkinDone,
-      });
-      markOnboardingCompleted(gymSlug);
-      setLastAction(gymSlug, "onboarding_complete");
-      completedRef.current = true;
-      track("onboarding_completed", { gymSlug });
-      navigate(`/${gymSlug}/owner`);
+      if (step === TOTAL_STEPS) {
+        const completedAt = new Date().toISOString();
+        window.sessionStorage.setItem(`onboarding-just-completed:${gymSlug}`, "first-member");
+        saveOnboardingState(gymSlug, {
+          completedAt,
+          currentStep: TOTAL_STEPS,
+          gymName,
+          city,
+          logo,
+          pricing: { monthly: Number(monthly), quarterly: Number(quarterly), halfYearly: Number(halfYearly) },
+          checkinSimulated: checkinDone,
+        });
+        markOnboardingCompleted(gymSlug);
+        setLastAction(gymSlug, "onboarding_complete");
+        completedRef.current = true;
+        track("onboarding_completed", { gymSlug });
+        navigate(`/${gymSlug}/owner`);
+        return;
+      }
+      goToStep(step + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save this step. Please try again.");
+    } finally {
       setIsAdvancing(false);
-      return;
     }
-    goToStep(step + 1);
-    setIsAdvancing(false);
   };
 
   const skipOptional = () => {
@@ -199,30 +206,25 @@ const OwnerOnboarding = () => {
 
   const stepMeta = {
     1: { title: "Set up your gym", subtitle: reducedGuidance ? "Add your basics to continue." : "Set your basics. Your workspace is ready from day one." },
-    2: { title: "Add your first member", subtitle: reducedGuidance ? "Add one member to continue." : "Add one member. Your workflow starts instantly." },
-    3: { title: "Set pricing", subtitle: reducedGuidance ? "Set monthly and quarterly plans." : "Set both plans. Renewals and dues stay in sync." },
-    4: { title: "Preview check-in", subtitle: reducedGuidance ? "Run one check-in preview." : "Run one check-in. Daily flow becomes clear." },
-    5: { title: "You're live.", subtitle: "Everything is in place. Gymtra now keeps this moving." },
-  }[step as 1 | 2 | 3 | 4 | 5];
+    2: { title: "Set pricing", subtitle: reducedGuidance ? "Set all plan prices." : "Set monthly, quarterly, and half-yearly plans." },
+    3: { title: "Preview check-in", subtitle: reducedGuidance ? "Run one check-in preview." : "Run one check-in. Daily flow becomes clear." },
+    4: { title: "You're live.", subtitle: "Everything is in place. Gymtra now keeps this moving." },
+  }[step as 1 | 2 | 3 | 4];
 
   const canContinue =
     (step === 1 && gymName.trim().length > 0 && city.trim().length > 0) ||
-    (step === 2 && memberName.trim().length > 0 && phone.trim().length >= 10) ||
-    (step === 3 && Number(monthly) > 0 && Number(quarterly) > 0) ||
-    (step === 4 && checkinDone) ||
-    step === 5;
+    (step === 2 && Number(monthly) > 0 && Number(quarterly) > 0 && Number(halfYearly) > 0) ||
+    (step === 3 && checkinDone) ||
+    step === 4;
 
-  const nextLabel =
-    step === 2 ? "Add member & continue" : step === 3 ? "Save pricing" : step === 5 ? "Go to dashboard" : "Continue";
+  const nextLabel = step === 2 ? "Save pricing" : step === 4 ? "Go to dashboard" : "Continue";
 
   const helperHint =
     step === 1
-      ? "Next: Add your first member."
+      ? "Next: Set your pricing."
       : step === 2
-        ? "Next: Set your pricing."
+        ? "Next: Run one check-in."
         : step === 3
-          ? "Next: Run one check-in."
-          : step === 4
             ? "Next: Open your dashboard."
             : "Next: Continue from your dashboard.";
 
@@ -304,8 +306,9 @@ const OwnerOnboarding = () => {
                 gymName,
                 city,
                 logo,
-                firstMemberName: memberName,
-                firstMemberPhone: phone,
+                pricing: monthly && quarterly && halfYearly
+                  ? { monthly: Number(monthly), quarterly: Number(quarterly), halfYearly: Number(halfYearly) }
+                  : undefined,
               });
             }}
           >
@@ -417,58 +420,6 @@ const OwnerOnboarding = () => {
             <div className="space-y-4">
               <div>
                 <div className="mb-1 flex items-center justify-between">
-                  <Label>Member name</Label>
-                  {showSuccess(memberName.trim().length > 0)}
-                </div>
-                <Input
-                  aria-label="First member name"
-                  value={memberName}
-                  onFocus={registerFocusActivity}
-                  onBlur={() => {
-                    setFocusChurn((current) => {
-                      const next = current + 1;
-                      if (next >= 2) showFrictionRecovery("One member name and phone unlock the next step.");
-                      return next;
-                    });
-                  }}
-                  onChange={(e) => {
-                    const nextValue = e.target.value;
-                    setMemberName(nextValue);
-                    if (!nextValue.trim()) showFrictionRecovery("One member name and phone unlock the next step.");
-                    registerInputActivity();
-                  }}
-                  placeholder="Aarav Mehta"
-                />
-              </div>
-              <div>
-                <div className="mb-1 flex items-center justify-between">
-                  <Label>Phone</Label>
-                  {showSuccess(phone.trim().length >= 10)}
-                </div>
-                <Input
-                  aria-label="First member phone"
-                  value={phone}
-                  onFocus={registerFocusActivity}
-                  onChange={(e) => {
-                    setPhone(e.target.value);
-                    registerInputActivity();
-                  }}
-                  placeholder="+91 98765 43210"
-                  inputMode="tel"
-                />
-              </div>
-              <div className="rounded-xl border bg-muted/30 p-3 text-sm">
-                <p className="font-medium">Live preview</p>
-                <p className="mt-1 text-muted-foreground">
-                  {memberName.trim() || "Member"} will now appear in your active roster and reminders flow.
-                </p>
-              </div>
-            </div>
-          )}
-          {step === 3 && (
-            <div className="space-y-4">
-              <div>
-                <div className="mb-1 flex items-center justify-between">
                   <Label>Monthly price</Label>
                   {showSuccess(Number(monthly) > 0)}
                 </div>
@@ -503,17 +454,36 @@ const OwnerOnboarding = () => {
                   placeholder="4800"
                 />
               </div>
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <Label>Half-yearly price</Label>
+                  {showSuccess(Number(halfYearly) > 0)}
+                </div>
+                <Input
+                  aria-label="Half-yearly price"
+                  type="number"
+                  value={halfYearly}
+                  onFocus={registerFocusActivity}
+                  onChange={(e) => {
+                    setHalfYearly(e.target.value);
+                    registerInputActivity();
+                  }}
+                  placeholder="7000"
+                />
+              </div>
               <div className="rounded-xl border bg-muted/30 p-3 text-sm">
                 <p className="font-medium">Live preview</p>
                 <p className="mt-1 text-muted-foreground">
                   Members will pay {Number(monthly) > 0 ? `₹${Number(monthly).toLocaleString("en-IN")}` : "₹0"}/month
                   {" "}or{" "}
-                  {Number(quarterly) > 0 ? `₹${Number(quarterly).toLocaleString("en-IN")}` : "₹0"}/quarter.
+                  {Number(quarterly) > 0 ? `₹${Number(quarterly).toLocaleString("en-IN")}` : "₹0"}/quarter
+                  {" "}or{" "}
+                  {Number(halfYearly) > 0 ? `₹${Number(halfYearly).toLocaleString("en-IN")}` : "₹0"}/half-yearly.
                 </p>
               </div>
             </div>
           )}
-          {step === 4 && (
+          {step === 3 && (
             <div className="space-y-4">
               <div className="rounded-xl border border-dashed p-5 text-center">
                 <p className="text-sm text-muted-foreground">Tap once to simulate a member check-in.</p>
@@ -542,7 +512,7 @@ const OwnerOnboarding = () => {
               </div>
             </div>
           )}
-          {step === 5 && (
+          {step === 4 && (
             <div className="space-y-3 text-sm text-muted-foreground">
               <div className="rounded-xl border bg-emerald-500/10 px-3 py-2 text-emerald-600">
                 You're set. Your dashboard is now configured.

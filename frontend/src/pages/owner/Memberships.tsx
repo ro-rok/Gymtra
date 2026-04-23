@@ -8,16 +8,32 @@ import { listMembersRequest } from "@/lib/member-api";
 import { listMembershipsRequest, renewMembershipRequest } from "@/lib/membership-api";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useMemo, useState } from "react";
-import { CreditCard, IndianRupee, AlertCircle, CheckCircle2, Search, RefreshCw, Calendar } from "lucide-react";
+import { CreditCard, IndianRupee, AlertCircle, CheckCircle2, Search, RefreshCw, Calendar, FileSpreadsheet, Filter, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PlanType } from "@/lib/types";
 import type { MemberProfile, Membership } from "@/lib/types";
+import { useTenant } from "@/contexts/TenantContext";
+import { getGymPlanPricing } from "@/lib/plan-pricing";
 
-const PLAN_PRICES: Record<PlanType, number> = { Monthly: 1500, Quarterly: 4000, "Half-Yearly": 7000 };
 const PLANS: PlanType[] = ["Monthly", "Quarterly", "Half-Yearly"];
+type LedgerFilterMode = "all" | "month" | "custom";
+
+const toMonthKey = (isoDate: string) => {
+  const date = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const toPrettyMonth = (monthKey: string) => {
+  const [year, month] = monthKey.split("-").map(Number);
+  if (!year || !month) return monthKey;
+  return new Date(year, month - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+};
 
 const Memberships = () => {
   const { toast } = useToast();
+  const { gym } = useTenant();
+  const planPrices = getGymPlanPricing(gym);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "pending_renewal" | "expired">("all");
   const [members, setMembers] = useState<MemberProfile[]>([]);
@@ -25,6 +41,10 @@ const Memberships = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [renewingMemberId, setRenewingMemberId] = useState<string | null>(null);
+  const [ledgerMode, setLedgerMode] = useState<LedgerFilterMode>("month");
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const loadData = async () => {
     setLoading(true);
@@ -45,7 +65,7 @@ const Memberships = () => {
   }, []);
 
   const handleRenew = async (memberId: string, plan: PlanType) => {
-    const amount = PLAN_PRICES[plan];
+    const amount = planPrices[plan];
     setRenewingMemberId(memberId);
     try {
       await renewMembershipRequest({ memberId, plan, amount });
@@ -70,6 +90,82 @@ const Memberships = () => {
     .reduce((s, ms) => s + (ms.plan === "Monthly" ? ms.amount : ms.plan === "Quarterly" ? ms.amount / 3 : ms.amount / 6), 0);
 
   const dueSoonCount = members.filter(m => m.status === "pending_renewal" || m.status === "expired").length;
+  const memberNameById = useMemo(
+    () => members.reduce<Record<string, string>>((acc, m) => {
+      acc[m.id] = m.name;
+      return acc;
+    }, {}),
+    [members]
+  );
+
+  const ledgerRows = useMemo(() => {
+    const rows = memberships.map((ms) => ({
+      ...ms,
+      memberName: memberNameById[ms.memberId] || "Unknown member",
+      transactionDate: ms.startDate,
+      monthKey: toMonthKey(ms.startDate),
+      entryType: ms.renewedFromId ? "renewal" : "new",
+    }));
+    return rows.sort((a, b) => b.transactionDate.localeCompare(a.transactionDate));
+  }, [memberships, memberNameById]);
+
+  const filteredLedgerRows = useMemo(() => {
+    if (ledgerMode === "all") return ledgerRows;
+    if (ledgerMode === "month") {
+      return ledgerRows.filter((row) => row.monthKey === selectedMonth);
+    }
+    if (!fromDate || !toDate) return ledgerRows;
+    return ledgerRows.filter((row) => row.transactionDate >= fromDate && row.transactionDate <= toDate);
+  }, [ledgerRows, ledgerMode, selectedMonth, fromDate, toDate]);
+
+  const ledgerMonthSummary = useMemo(() => {
+    const map = new Map<string, { amount: number; count: number; renewals: number }>();
+    filteredLedgerRows.forEach((row) => {
+      const prev = map.get(row.monthKey) || { amount: 0, count: 0, renewals: 0 };
+      prev.amount += Number(row.amount || 0);
+      prev.count += 1;
+      if (row.entryType === "renewal") prev.renewals += 1;
+      map.set(row.monthKey, prev);
+    });
+    return Array.from(map.entries())
+      .map(([monthKey, value]) => ({ monthKey, ...value }))
+      .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+  }, [filteredLedgerRows]);
+
+  const ledgerTotals = useMemo(() => ({
+    amount: filteredLedgerRows.reduce((sum, row) => sum + Number(row.amount || 0), 0),
+    entries: filteredLedgerRows.length,
+    renewals: filteredLedgerRows.filter((row) => row.entryType === "renewal").length,
+  }), [filteredLedgerRows]);
+
+  const exportFilteredLedgerCsv = () => {
+    const escapeCell = (value: string | number) => `"${String(value ?? "").replace(/"/g, "\"\"")}"`;
+    const headers = ["Date", "Month", "Member", "Type", "Plan", "Status", "Amount"];
+    const lines = filteredLedgerRows.map((row) =>
+      [
+        row.transactionDate,
+        toPrettyMonth(row.monthKey),
+        row.memberName,
+        row.entryType === "renewal" ? "Renewal" : "New plan",
+        row.plan,
+        row.status,
+        Number(row.amount || 0),
+      ]
+        .map(escapeCell)
+        .join(",")
+    );
+    const csv = [headers.map(escapeCell).join(","), ...lines].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `renewal-ledger-${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const visible = useMemo(() => members
     .filter(m => filter === "all" || m.status === filter)
@@ -84,6 +180,146 @@ const Memberships = () => {
         <KpiCard label="Renewals due" value={counts.pending_renewal} icon={AlertCircle} accent="warning" />
         <KpiCard label="Expired" value={counts.expired} icon={CreditCard} accent="destructive" />
         <KpiCard label="Est. monthly" value={`₹${Math.round(monthRevenue / 1000)}K`} hint="recurring revenue" icon={IndianRupee} accent="primary" animated={false} />
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-4 md:p-5 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold flex items-center gap-2">
+              <FileSpreadsheet className="w-4 h-4 text-primary" />
+              Renewal Ledger / Balance Sheet
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Month-wise history and custom date range.</div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(["month", "custom", "all"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setLedgerMode(mode)}
+                className={cn(
+                  "px-3 h-8 rounded-md text-xs font-semibold border transition-all",
+                  ledgerMode === mode ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:border-primary/40"
+                )}
+              >
+                {mode === "month" ? "Month" : mode === "custom" ? "Custom range" : "All time"}
+              </button>
+            ))}
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={exportFilteredLedgerCsv} disabled={filteredLedgerRows.length === 0}>
+              <Download className="w-3.5 h-3.5" /> Export CSV
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {ledgerMode === "month" && (
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Month</div>
+              <Input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
+            </div>
+          )}
+          {ledgerMode === "custom" && (
+            <>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">From</div>
+                <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">To</div>
+                <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+              </div>
+            </>
+          )}
+          <div className="rounded-xl border border-border p-3">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Entries</div>
+            <div className="text-lg font-semibold tabular-nums">{ledgerTotals.entries}</div>
+          </div>
+          <div className="rounded-xl border border-border p-3">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Renewals</div>
+            <div className="text-lg font-semibold tabular-nums">{ledgerTotals.renewals}</div>
+          </div>
+          <div className="rounded-xl border border-border p-3">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Collected</div>
+            <div className="text-lg font-semibold tabular-nums">₹{ledgerTotals.amount.toLocaleString("en-IN")}</div>
+          </div>
+        </div>
+
+        {ledgerMode === "custom" && fromDate && toDate && fromDate > toDate && (
+          <div className="mt-3 text-xs text-destructive flex items-center gap-1.5">
+            <Filter className="w-3.5 h-3.5" />
+            `From` date should be before or equal to `To` date.
+          </div>
+        )}
+
+        <div className="mt-4 overflow-x-auto rounded-xl border border-border">
+          <table className="w-full text-sm min-w-[760px]">
+            <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              <tr>
+                <th className="text-left px-4 py-2.5">Date</th>
+                <th className="text-left px-4 py-2.5">Member</th>
+                <th className="text-left px-4 py-2.5">Type</th>
+                <th className="text-left px-4 py-2.5">Plan</th>
+                <th className="text-left px-4 py-2.5">Status</th>
+                <th className="text-right px-4 py-2.5">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filteredLedgerRows.slice(0, 200).map((row) => (
+                <tr key={`ledger-${row.id}`} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-2.5 text-muted-foreground">{row.transactionDate}</td>
+                  <td className="px-4 py-2.5 font-medium">{row.memberName}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full text-[11px] font-semibold",
+                      row.entryType === "renewal" ? "bg-primary/10 text-primary" : "bg-success/10 text-success"
+                    )}>
+                      {row.entryType === "renewal" ? "Renewal" : "New plan"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">{row.plan}</td>
+                  <td className="px-4 py-2.5"><StatusBadge status={row.status} /></td>
+                  <td className="px-4 py-2.5 text-right font-semibold tabular-nums">₹{Number(row.amount || 0).toLocaleString("en-IN")}</td>
+                </tr>
+              ))}
+              {filteredLedgerRows.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                    No ledger entries for selected filter.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4 overflow-x-auto rounded-xl border border-border">
+          <table className="w-full text-sm min-w-[620px]">
+            <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              <tr>
+                <th className="text-left px-4 py-2.5">Month</th>
+                <th className="text-right px-4 py-2.5">Entries</th>
+                <th className="text-right px-4 py-2.5">Renewals</th>
+                <th className="text-right px-4 py-2.5">Collected</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {ledgerMonthSummary.map((row) => (
+                <tr key={`month-${row.monthKey}`}>
+                  <td className="px-4 py-2.5 font-medium">{toPrettyMonth(row.monthKey)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">{row.count}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">{row.renewals}</td>
+                  <td className="px-4 py-2.5 text-right font-semibold tabular-nums">₹{row.amount.toLocaleString("en-IN")}</td>
+                </tr>
+              ))}
+              {ledgerMonthSummary.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                    Month summary will appear when transactions are available.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -163,33 +399,41 @@ const Memberships = () => {
                     </div>
                   </div>
                   <div className="text-right hidden sm:block">
-                    <div className="font-display text-lg font-bold tabular-nums">₹{(ms?.amount || PLAN_PRICES[currentPlan]).toLocaleString("en-IN")}</div>
+                    <div className="font-display text-lg font-bold tabular-nums">₹{(ms?.amount || planPrices[currentPlan]).toLocaleString("en-IN")}</div>
                     <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">last paid</div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {PLANS.map(p => (
-                      <button
-                        key={p}
-                        onClick={() => handleRenew(m.id, p)}
-                        className={cn(
-                          "px-2.5 h-8 rounded-md text-[11px] font-semibold border transition-all",
-                          p === currentPlan
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-card border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                        )}
-                      >
-                        {p === "Half-Yearly" ? "6mo" : p === "Quarterly" ? "3mo" : "1mo"}
-                      </button>
-                    ))}
-                    <Button
-                      size="sm"
-                      variant={m.status === "active" ? "outline" : "default"}
-                      onClick={() => handleRenew(m.id, currentPlan)}
-                      disabled={renewingMemberId === m.id}
-                      className="gap-1.5 ml-1"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" /> Renew
-                    </Button>
+                    {m.status !== "active" ? (
+                      <>
+                        {PLANS.map(p => (
+                          <button
+                            key={p}
+                            onClick={() => handleRenew(m.id, p)}
+                            className={cn(
+                              "px-2.5 h-8 rounded-md text-[11px] font-semibold border transition-all",
+                              p === currentPlan
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-card border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                            )}
+                          >
+                            {p === "Half-Yearly" ? "6mo" : p === "Quarterly" ? "3mo" : "1mo"}
+                          </button>
+                        ))}
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleRenew(m.id, currentPlan)}
+                          disabled={renewingMemberId === m.id}
+                          className="gap-1.5 ml-1"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" /> Renew
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-success/10 text-success font-semibold">
+                        Active plan
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

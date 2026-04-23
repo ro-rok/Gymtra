@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Palette, IndianRupee, Bell, Save, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/contexts/TenantContext";
-import { signTenantLogoUploadRequest, updateTenantLogoRequest } from "@/lib/tenant-api";
+import { signTenantLogoUploadRequest, updateTenantLogoRequest, updateTenantPricingRequest } from "@/lib/tenant-api";
+import { getGymPlanPricing } from "@/lib/plan-pricing";
 
 const Section = ({ icon: Icon, title, hint, children }: any) => (
   <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -34,11 +35,22 @@ const Field = ({ label, hint, children }: any) => (
 
 const Settings = () => {
   const { gymSlug } = useParams();
-  const { gym } = useTenant();
+  const { gym, updateGymPlanPricing } = useTenant();
   const { toast } = useToast();
   const save = (what: string) => () => toast({ title: `${what} saved`, description: "Changes are live for your gym." });
   const [logoPreview, setLogoPreview] = useState<string>(gym?.logo || "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const currentPricing = getGymPlanPricing(gym);
+  const [monthlyPrice, setMonthlyPrice] = useState<number>(currentPricing.Monthly);
+  const [quarterlyPrice, setQuarterlyPrice] = useState<number>(currentPricing.Quarterly);
+  const [halfYearlyPrice, setHalfYearlyPrice] = useState<number>(currentPricing["Half-Yearly"]);
+  const [savingPricing, setSavingPricing] = useState(false);
+
+  useEffect(() => {
+    setMonthlyPrice(currentPricing.Monthly);
+    setQuarterlyPrice(currentPricing.Quarterly);
+    setHalfYearlyPrice(currentPricing["Half-Yearly"]);
+  }, [currentPricing.Monthly, currentPricing.Quarterly, currentPricing["Half-Yearly"]]);
 
   const handleLogoSelect = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -81,6 +93,32 @@ const Settings = () => {
     }
   };
 
+  const handlePricingSave = async () => {
+    if (!gymSlug) return;
+    if (monthlyPrice <= 0 || quarterlyPrice <= 0 || halfYearlyPrice <= 0) {
+      toast({ title: "Invalid pricing", description: "All plan prices must be greater than zero.", variant: "destructive" });
+      return;
+    }
+    setSavingPricing(true);
+    try {
+      await updateTenantPricingRequest(gymSlug, {
+        monthly: monthlyPrice,
+        quarterly: quarterlyPrice,
+        halfYearly: halfYearlyPrice,
+      });
+      updateGymPlanPricing({ monthly: monthlyPrice, quarterly: quarterlyPrice, halfYearly: halfYearlyPrice });
+      toast({ title: "Pricing saved", description: "Plan prices are now default across this gym." });
+    } catch (err) {
+      toast({
+        title: "Failed to save pricing",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPricing(false);
+    }
+  };
+
   return (
     <>
       <PageHeader title="Settings" subtitle="Branding, pricing, and operational defaults." />
@@ -104,12 +142,14 @@ const Settings = () => {
 
         <Section icon={IndianRupee} title="Plan pricing" hint="Used when creating new members.">
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Monthly"><Input type="number" defaultValue={1500} /></Field>
-            <Field label="Quarterly"><Input type="number" defaultValue={4000} /></Field>
-            <Field label="Half-yearly"><Input type="number" defaultValue={7000} /></Field>
+            <Field label="Monthly"><Input type="number" value={monthlyPrice} onChange={(e) => setMonthlyPrice(Number(e.target.value) || 0)} /></Field>
+            <Field label="Quarterly"><Input type="number" value={quarterlyPrice} onChange={(e) => setQuarterlyPrice(Number(e.target.value) || 0)} /></Field>
+            <Field label="Half-yearly"><Input type="number" value={halfYearlyPrice} onChange={(e) => setHalfYearlyPrice(Number(e.target.value) || 0)} /></Field>
           </div>
           <Field label="Currency"><Input defaultValue="INR" /></Field>
-          <Button onClick={save("Pricing")} className="gap-2"><Save className="w-4 h-4" /> Save pricing</Button>
+          <Button onClick={handlePricingSave} className="gap-2" disabled={savingPricing}>
+            <Save className="w-4 h-4" /> {savingPricing ? "Saving..." : "Save pricing"}
+          </Button>
         </Section>
 
         <Section icon={Bell} title="Reminders & cadence" hint="When should members hear from you?">

@@ -25,6 +25,7 @@ class PublicService:
 
     @staticmethod
     def _to_summary(doc) -> PublicGymSummary:
+        pricing = doc.get("membership_pricing") or {}
         return PublicGymSummary(
             id=str(doc["_id"]),
             slug=doc["slug"],
@@ -35,5 +36,10 @@ class PublicService:
             tagline=doc.get("tagline"),
             isActive=bool(doc.get("is_active", False)),
             createdAt=doc.get("created_at").isoformat() if doc.get("created_at") else "",
+            planPricing={
+                "monthly": float(pricing.get("monthly", 1500)),
+                "quarterly": float(pricing.get("quarterly", 4000)),
+                "halfYearly": float(pricing.get("half_yearly", 7000)),
+            },
         )
 

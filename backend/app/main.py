@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.db.mongo import get_db
 
 logger = logging.getLogger(__name__)
+DEFAULT_GYM_TIMEZONE = "Asia/Kolkata"
 
 
 def validate_runtime_security(settings) -> None:
@@ -45,6 +46,8 @@ def ensure_indexes() -> None:
     db.refresh_token_events.create_index([("created_at", 1)], expireAfterSeconds=30 * 24 * 60 * 60)
     db.notification_logs.create_index([("created_at", 1)], expireAfterSeconds=30 * 24 * 60 * 60)
     db.notification_logs.create_index([("gym_id", 1), ("user_id", 1), ("event_type", 1), ("created_at", -1)])
+    db.password_reset_requests.create_index([("gym_id", 1), ("status", 1), ("created_at", -1)])
+    db.password_reset_requests.create_index([("member_id", 1), ("status", 1)])
     db.diet_templates.create_index([("gym_id", 1), ("updated_at", -1)])
     db.member_diet_assignments.create_index([("gym_id", 1), ("member_id", 1), ("active", 1)])
     db.member_diet_assignments.create_index([("gym_id", 1), ("member_id", 1), ("assigned_at", -1)])
@@ -53,6 +56,16 @@ def ensure_indexes() -> None:
     db.staff_profiles.create_index([("gym_id", 1), ("user_id", 1)], unique=True)
     db.payroll_records.create_index([("gym_id", 1), ("month", -1), ("created_at", -1)])
     db.leave_records.create_index([("gym_id", 1), ("leave_date", -1)])
+    db.gyms.update_many(
+        {
+            "$or": [
+                {"timezone": {"$exists": False}},
+                {"timezone": None},
+                {"timezone": ""},
+            ]
+        },
+        {"$set": {"timezone": DEFAULT_GYM_TIMEZONE}},
+    )
 
 
 @asynccontextmanager

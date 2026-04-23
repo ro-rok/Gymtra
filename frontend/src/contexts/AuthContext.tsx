@@ -11,6 +11,7 @@ interface AuthContextType {
   loginWithPhone: (phone: string, password: string, gymSlug?: string) => Promise<{ success: boolean; error?: string; user?: AuthUser }>;
   logout: () => Promise<void>;
   isRole: (role: Role) => boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -91,8 +92,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const isRole = useCallback((role: Role) => user?.role === role, [user]);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const authUser = await meRequest();
+      setUser(authUser);
+    } catch {
+      setUser(null);
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithPhone, logout, isRole }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithPhone, logout, isRole, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

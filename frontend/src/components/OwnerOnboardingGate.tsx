@@ -1,6 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Navigate, useLocation, useParams } from "react-router-dom";
-import { listMembersRequest } from "@/lib/member-api";
 import { hasSavedPricing, isOnboardingComplete } from "@/lib/onboarding-state";
 import { track } from "@/lib/tracking";
 
@@ -25,11 +24,9 @@ export const OwnerOnboardingGate = ({ children }: { children: ReactNode }) => {
         return;
       }
       try {
-        const members = await listMembersRequest();
-        const missingMembers = members.length === 0;
         const missingPricing = !hasSavedPricing(gymSlug);
         if (mounted) {
-          setRequiresOnboarding(missingMembers || missingPricing);
+          setRequiresOnboarding(missingPricing);
         }
       } catch {
         if (mounted) setRequiresOnboarding(true);

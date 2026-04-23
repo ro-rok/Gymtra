@@ -7,10 +7,12 @@ from pymongo.database import Database
 
 from app.core.audit import log_audit_event
 from app.core.config import get_settings
-from app.core.security import generate_refresh_token, hash_refresh_token, verify_password
+from app.core.mailer import send_email_async
+from app.core.security import generate_refresh_token, hash_password, hash_refresh_token, verify_password
 from app.core.serializers import as_str_id
 from app.modules.auth.repository import AuthRepository
-from app.modules.auth.schemas import AuthUserResponse
+from app.modules.auth.schemas import AuthUserResponse, PasswordResetRequestItem
+from app.modules.notifications.service import NotificationsService
 from app.modules.public.repository import PublicRepository
 
 
@@ -62,6 +64,12 @@ class AuthService:
         if user.get("role") != "super_admin":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Gym slug is required")
         return user
+
+    @staticmethod
+    def build_default_password(*, gym_name: str, for_date: datetime) -> str:
+        gym_token = "".join(ch for ch in gym_name if ch.isalnum()) or "Gym"
+        date_part = for_date.strftime("%d%m%y")
+        return f"{gym_token}@{date_part}"
 
     def create_refresh_session(self, *, user: dict, user_agent: str | None = None) -> str:
         now = datetime.now(timezone.utc)
@@ -153,5 +161,109 @@ class AuthService:
             gymId=gym_id,
             gymSlug=gym_slug,
             avatar=user_doc.get("avatar"),
+            mustChangePassword=bool(user_doc.get("must_change_password", False)),
+        )
+
+    def change_password_required(self, *, actor: dict, new_password: str) -> None:
+        user_id = actor.get("_id")
+        if not isinstance(user_id, ObjectId):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user")
+        self.repo.update_user_password(user_id=user_id, password_hash=hash_password(new_password), must_change_password=False)
+
+    def create_password_reset_request(self, *, gym_slug: str, identifier: str) -> dict:
+        gym = self.public_repo.get_gym_by_slug(gym_slug)
+        if not gym:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Gym not found")
+        member = self.repo.get_user_by_email(identifier, gym_id=gym["_id"]) or self.repo.get_user_by_phone(identifier, gym_id=gym["_id"])
+        if not member or member.get("role") != "member":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+        now = datetime.now(timezone.utc)
+        request_doc = self.repo.create_password_reset_request(
+            {
+                "gym_id": gym["_id"],
+                "member_id": member["_id"],
+                "status": "pending",
+                "created_at": now,
+                "updated_at": now,
+            }
+        )
+        owner = self.db.users.find_one({"gym_id": gym["_id"], "role": "owner"})
+        if owner:
+            NotificationsService(self.db).send_event_async(
+                event_type="password_reset_request",
+                title="Password reset request",
+                body=f"{member.get('name', 'A member')} requested a password reset.",
+                gym_id=as_str_id(gym["_id"]) or "",
+                user_id=as_str_id(owner.get("_id")),
+            )
+        owner_email = owner.get("email") if owner else None
+        member_name = member.get("name", "Member")
+        send_email_async(
+            to_email=member.get("email"),
+            subject="Gymtra password reset request created",
+            body=f"Hi {member_name}, your password reset request has been created and is pending owner approval.",
+        )
+        send_email_async(
+            to_email=owner_email,
+            subject="Gymtra member password reset request",
+            body=f"Member {member_name} requested a password reset. Approve it from dashboard reminders.",
+        )
+        return {"success": True, "requestId": as_str_id(request_doc.get("_id"))}
+
+    def list_pending_password_reset_requests(self, *, actor: dict) -> list[PasswordResetRequestItem]:
+        gym_id = actor.get("gym_id")
+        if not gym_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Gym context is required")
+        rows = self.repo.list_password_reset_requests(gym_id=gym_id, status="pending")
+        items: list[PasswordResetRequestItem] = []
+        for row in rows:
+            member = self.db.users.find_one({"_id": row.get("member_id")})
+            items.append(
+                PasswordResetRequestItem(
+                    id=as_str_id(row.get("_id")) or "",
+                    memberId=as_str_id(row.get("member_id")) or "",
+                    memberName=(member or {}).get("name", "Member"),
+                    memberEmail=(member or {}).get("email"),
+                    memberPhone=(member or {}).get("phone"),
+                    createdAt=(row.get("created_at") or datetime.now(timezone.utc)).isoformat(),
+                    status=row.get("status", "pending"),
+                )
+            )
+        return items
+
+    def approve_password_reset_request(self, *, actor: dict, request_id: str) -> None:
+        if not ObjectId.is_valid(request_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+        req = self.repo.get_password_reset_request(ObjectId(request_id))
+        if not req or req.get("status") != "pending":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+        gym_id = actor.get("gym_id")
+        if not gym_id or req.get("gym_id") != gym_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        member_id = req.get("member_id")
+        member = self.db.users.find_one({"_id": member_id, "gym_id": gym_id, "role": "member"})
+        gym = self.db.gyms.find_one({"_id": gym_id})
+        if not member or not gym:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+        now = datetime.now(timezone.utc)
+        default_password = self.build_default_password(gym_name=gym.get("name", "Gym"), for_date=now)
+        self.repo.update_user_password(user_id=member["_id"], password_hash=hash_password(default_password), must_change_password=True)
+        self.repo.update_password_reset_request(
+            request_id=ObjectId(request_id),
+            payload={
+                "status": "approved",
+                "approved_at": now,
+                "approved_by": actor.get("_id"),
+                "updated_at": now,
+            },
+        )
+        send_email_async(
+            to_email=member.get("email"),
+            subject="Gymtra password reset approved",
+            body=(
+                f"Hi {member.get('name', 'Member')}, your password reset was approved.\n"
+                f"Temporary password: {default_password}\n"
+                "You must change your password after login."
+            ),
         )
 

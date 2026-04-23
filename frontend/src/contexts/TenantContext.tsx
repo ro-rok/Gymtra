@@ -10,6 +10,7 @@ interface TenantContextType {
   loading: boolean;
   error: string | null;
   invalidTenant: boolean;
+  updateGymPlanPricing: (pricing: { monthly: number; quarterly: number; halfYearly: number }) => void;
 }
 
 const TenantContext = createContext<TenantContextType>({
@@ -18,6 +19,7 @@ const TenantContext = createContext<TenantContextType>({
   loading: false,
   error: null,
   invalidTenant: false,
+  updateGymPlanPricing: () => undefined,
 });
 
 export const TenantProvider = ({ children }: { children: ReactNode }) => {
@@ -26,6 +28,10 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(Boolean(gymSlug));
   const [error, setError] = useState<string | null>(null);
   const [invalidTenant, setInvalidTenant] = useState(false);
+
+  const updateGymPlanPricing = (pricing: { monthly: number; quarterly: number; halfYearly: number }) => {
+    setGym((current) => (current ? { ...current, planPricing: pricing } : current));
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -69,7 +75,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   }, [gymSlug]);
 
   return (
-    <TenantContext.Provider value={{ gym, gymSlug, loading, error, invalidTenant }}>
+    <TenantContext.Provider value={{ gym, gymSlug, loading, error, invalidTenant, updateGymPlanPricing }}>
       {children}
     </TenantContext.Provider>
   );

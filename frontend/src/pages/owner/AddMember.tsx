@@ -9,8 +9,10 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, User, Activity, Apple, CreditCard, Save, Sparkles } from "lucide-react";
+import { useTenant } from "@/contexts/TenantContext";
+import { getGymPlanPricing } from "@/lib/plan-pricing";
 
-const PLAN_PRICES: Record<string, number> = { Monthly: 1500, Quarterly: 4000, "Half-Yearly": 7000 };
+const PLAN_ORDER = ["Monthly", "Quarterly", "Half-Yearly"] as const;
 
 const Section = ({ icon: Icon, title, hint, children }: any) => (
   <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -40,6 +42,8 @@ const AddMember = () => {
   const navigate = useNavigate();
   const { gymSlug } = useParams();
   const { toast } = useToast();
+  const { gym } = useTenant();
+  const planPrices = getGymPlanPricing(gym);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -58,10 +62,16 @@ const AddMember = () => {
     setSaving(true);
     setFormError(null);
     try {
+      const normalizedEmail = form.email.trim();
+      if (!normalizedEmail) {
+        setFormError("Email is required");
+        setSaving(false);
+        return;
+      }
       const member = await createMemberRequest({
         name: form.name,
         phone: form.phone,
-        email: form.email,
+        email: normalizedEmail,
         password: "member123",
         joinDate: form.startDate,
         age: form.age ? Number(form.age) : undefined,
@@ -86,7 +96,7 @@ const AddMember = () => {
       await createMembershipRequest({
         memberId: member.id,
         plan: form.plan as any,
-        amount: PLAN_PRICES[form.plan],
+        amount: planPrices[form.plan as keyof typeof planPrices],
         startDate: form.startDate,
       });
       toast({ title: "Member added", description: `${form.name} is on the ${form.plan} plan.` });
@@ -130,7 +140,7 @@ const AddMember = () => {
         <Section icon={User} title="Personal info" hint="Who's joining?">
           <Field label="Full name" required><Input placeholder="Aarav Sharma" required value={form.name} onChange={set("name")} /></Field>
           <Field label="Phone" required><Input placeholder="+91 98765 43210" required value={form.phone} onChange={set("phone")} /></Field>
-          <Field label="Email"><Input type="email" placeholder="optional" value={form.email} onChange={set("email")} /></Field>
+          <Field label="Email" required><Input type="email" placeholder="member@example.com" required value={form.email} onChange={set("email")} /></Field>
           <Field label="Age"><Input type="number" placeholder="28" value={form.age} onChange={set("age")} /></Field>
           <Field label="Gender">
             <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
@@ -183,9 +193,11 @@ const AddMember = () => {
             <Select value={form.plan} onValueChange={(v) => setForm({ ...form, plan: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Monthly">Monthly · ₹1,500</SelectItem>
-                <SelectItem value="Quarterly">Quarterly · ₹4,000</SelectItem>
-                <SelectItem value="Half-Yearly">Half-Yearly · ₹7,000</SelectItem>
+                {PLAN_ORDER.map((plan) => (
+                  <SelectItem key={plan} value={plan}>
+                    {plan} · ₹{planPrices[plan].toLocaleString("en-IN")}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Field>
@@ -193,7 +205,7 @@ const AddMember = () => {
           <div className="sm:col-span-2 rounded-xl bg-primary/5 border border-primary/20 p-3 flex items-center gap-3">
             <Sparkles className="w-4 h-4 text-primary shrink-0" />
             <div className="text-xs text-foreground/80">
-              <span className="font-semibold">{form.plan} plan</span> · ₹{PLAN_PRICES[form.plan].toLocaleString("en-IN")} · ends{" "}
+              <span className="font-semibold">{form.plan} plan</span> · ₹{planPrices[form.plan as keyof typeof planPrices].toLocaleString("en-IN")} · ends{" "}
               {new Date(new Date(form.startDate).setMonth(new Date(form.startDate).getMonth() + (form.plan === "Monthly" ? 1 : form.plan === "Quarterly" ? 3 : 6))).toISOString().split("T")[0]}
             </div>
           </div>

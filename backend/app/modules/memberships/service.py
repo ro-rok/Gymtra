@@ -43,11 +43,27 @@ class MembershipsService:
             renewedFromId=as_str_id(row.get("renewed_from_id")),
         )
 
+    def _as_utc(self, value: datetime | None) -> datetime | None:
+        if not isinstance(value, datetime):
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
     def _latest_valid_membership(self, *, member_id: ObjectId, gym_id: ObjectId) -> dict | None:
         return self.db.memberships.find_one(
             {"gym_id": gym_id, "user_id": member_id},
             sort=[("end_date", -1), ("created_at", -1)],
         )
+
+    def _current_membership_for_status(self, *, member_id: ObjectId, gym_id: ObjectId) -> dict | None:
+        active_like = self.db.memberships.find_one(
+            {"gym_id": gym_id, "user_id": member_id, "status": {"$in": ["active", "pending_renewal"]}},
+            sort=[("end_date", -1), ("created_at", -1)],
+        )
+        if active_like:
+            return active_like
+        return self._latest_valid_membership(member_id=member_id, gym_id=gym_id)
 
     def _enforce_single_active_membership(self, *, member_id: ObjectId, gym_id: ObjectId) -> None:
         active_rows = list(self.db.memberships.find({"gym_id": gym_id, "user_id": member_id, "status": "active"}).sort("created_at", -1))
@@ -60,15 +76,21 @@ class MembershipsService:
         )
 
     def _sync_member_status_from_membership(self, *, member_id: ObjectId, gym_id: ObjectId) -> None:
-        latest = self._latest_valid_membership(member_id=member_id, gym_id=gym_id)
+        latest = self._current_membership_for_status(member_id=member_id, gym_id=gym_id)
         if not latest:
-            self.repo.update_member_status(member_id, gym_id, "inactive")
+            self.repo.update_member_status(member_id, gym_id, "expired")
             return
         now = datetime.now(timezone.utc)
-        end_date = latest.get("end_date")
+        renewal_cutoff = now + timedelta(days=14)
+        end_date = self._as_utc(latest.get("end_date"))
         latest_status = latest.get("status")
-        is_active = latest_status == "active" and isinstance(end_date, datetime) and end_date >= now
-        self.repo.update_member_status(member_id, gym_id, "active" if is_active else "inactive")
+        if end_date is None or end_date < now or latest_status in {"expired", "cancelled"}:
+            next_status = "expired"
+        elif latest_status == "pending_renewal" or end_date <= renewal_cutoff:
+            next_status = "pending_renewal"
+        else:
+            next_status = "active"
+        self.repo.update_member_status(member_id, gym_id, next_status)
 
     def create_membership(self, actor: dict, payload: MembershipCreateRequest) -> MembershipResponse:
         gym_id = self._resolve_gym_id(actor)

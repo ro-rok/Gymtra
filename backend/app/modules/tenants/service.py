@@ -11,6 +11,9 @@ from app.modules.tenants.schemas import (
     TenantLogoUpdateRequest,
     TenantLogoUploadSignRequest,
     TenantLogoUploadSignResponse,
+    TenantPlanPricing,
+    TenantPricingResponse,
+    TenantPricingUpdateRequest,
 )
 
 
@@ -30,6 +33,18 @@ class TenantsService:
             tagline=(branding or {}).get("tagline", gym.get("tagline")),
             brandColor=(branding or {}).get("brand_color"),
         )
+
+    def get_pricing_by_slug(self, slug: str) -> TenantPricingResponse | None:
+        gym, _ = self.repo.get_tenant_by_slug(slug)
+        if not gym:
+            return None
+        raw = gym.get("membership_pricing") or {}
+        pricing = TenantPlanPricing(
+            monthly=float(raw.get("monthly", 1500)),
+            quarterly=float(raw.get("quarterly", 4000)),
+            halfYearly=float(raw.get("half_yearly", 7000)),
+        )
+        return TenantPricingResponse(gymId=str(gym["_id"]), slug=gym["slug"], planPricing=pricing)
 
     @staticmethod
     def _slugify_filename(file_name: str) -> str:
@@ -82,5 +97,29 @@ class TenantsService:
             logo=payload.logoUrl.strip(),
             tagline=(branding or {}).get("tagline", gym.get("tagline")),
             brandColor=(branding or {}).get("brand_color"),
+        )
+
+    def update_pricing(self, *, actor: dict, slug: str, payload: TenantPricingUpdateRequest) -> TenantPricingResponse:
+        gym, _ = self.repo.get_tenant_by_slug(slug)
+        if not gym:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+        if str(actor.get("gym_id") or "") != str(gym.get("_id")):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden for current gym")
+        if payload.monthly <= 0 or payload.quarterly <= 0 or payload.halfYearly <= 0:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="All plan prices must be positive")
+        pricing_doc = {
+            "monthly": float(payload.monthly),
+            "quarterly": float(payload.quarterly),
+            "half_yearly": float(payload.halfYearly),
+        }
+        self.repo.update_gym_pricing(gym["_id"], pricing_doc)
+        return TenantPricingResponse(
+            gymId=str(gym["_id"]),
+            slug=gym["slug"],
+            planPricing=TenantPlanPricing(
+                monthly=pricing_doc["monthly"],
+                quarterly=pricing_doc["quarterly"],
+                halfYearly=pricing_doc["half_yearly"],
+            ),
         )
 

@@ -46,6 +46,7 @@ import MemberDiet from "./pages/member/Diet";
 import MemberProgress from "./pages/member/Progress";
 import MemberMembership from "./pages/member/Membership";
 import MemberProfilePage from "./pages/member/Profile";
+import ChangePasswordRequired from "./pages/ChangePasswordRequired";
 
 const queryClient = new QueryClient();
 
@@ -107,6 +108,14 @@ const App = () => (
               <TenantProvider>
                 <ProtectedRoute allowedRoles={["owner"]} gymScoped>
                   <OwnerOnboarding />
+                </ProtectedRoute>
+              </TenantProvider>
+            } />
+
+            <Route path="/:gymSlug/change-password-required" element={
+              <TenantProvider>
+                <ProtectedRoute allowedRoles={["owner", "trainer", "member"]} gymScoped>
+                  <ChangePasswordRequired />
                 </ProtectedRoute>
               </TenantProvider>
             } />

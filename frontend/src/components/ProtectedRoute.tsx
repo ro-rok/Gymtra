@@ -38,6 +38,13 @@ export const ProtectedRoute = ({ allowedRoles, children, gymScoped = false }: Pr
     return <Navigate to="/" replace />;
   }
 
+  if (user.mustChangePassword && !location.pathname.endsWith("/change-password-required")) {
+    const gymSlug = location.pathname.split("/")[1];
+    if (gymSlug) {
+      return <Navigate to={`/${gymSlug}/change-password-required`} replace />;
+    }
+  }
+
   // For gym-scoped routes, verify user belongs to the gym
   if (gymScoped && user.role !== "super_admin") {
     const pathSlug = location.pathname.split("/")[1];

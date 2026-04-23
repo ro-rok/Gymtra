@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getAttendanceForDayRequest } from "@/lib/attendance-api";
 import { listMembersRequest } from "@/lib/member-api";
 import { useEffect, useState } from "react";
+import { getISTDateString } from "@/lib/datetime";
 
 const TrainerDashboard = () => {
   const { gymSlug } = useParams();
@@ -22,7 +23,7 @@ const TrainerDashboard = () => {
   useEffect(() => {
     setIsLoading(true);
     setHasError(false);
-    const today = new Date().toISOString().split("T")[0];
+    const today = getISTDateString();
     Promise.all([listMembersRequest(), getAttendanceForDayRequest(today)])
       .then(([memberRows, dayAttendance]) => {
         setMembers(memberRows);

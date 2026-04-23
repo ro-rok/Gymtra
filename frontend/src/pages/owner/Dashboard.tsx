@@ -13,6 +13,8 @@ import { listMembershipsRequest } from "@/lib/membership-api";
 import { useEffect, useState } from "react";
 import { listExpensesRequest } from "@/lib/expenses-api";
 import { getLastAction, setLastAction } from "@/lib/onboarding-state";
+import { listPendingPasswordResetRequests } from "@/lib/auth-api";
+import { getISTDateString, getISTMonthKey } from "@/lib/datetime";
 
 const waLink = (phone: string, msg: string) =>
   `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(msg)}`;
@@ -39,6 +41,7 @@ const OwnerDashboard = () => {
   const [reloadKey, setReloadKey] = useState(0);
   const [continuityHint, setContinuityHint] = useState<string | null>(null);
   const [postCompletionMomentum, setPostCompletionMomentum] = useState(false);
+  const [pendingPasswordResetCount, setPendingPasswordResetCount] = useState(0);
 
   useEffect(() => {
     if (!gymSlug) return;
@@ -65,14 +68,14 @@ const OwnerDashboard = () => {
   useEffect(() => {
     setIsLoading(true);
     setHasError(false);
-    const today = new Date().toISOString().split("T")[0];
+    const today = getISTDateString();
     Promise.all([listMembersRequest(), listMembershipsRequest(), memberDashboardSummaryRequest(), getAttendanceForDayRequest(today), listExpensesRequest()])
       .then(([mRows, msRows, sm, attendance, expenses]) => {
         setMembers(mRows);
         setMemberships(msRows);
         setSummary(sm);
         setTodayAttendance(attendance.items);
-        const monthPrefix = new Date().toISOString().slice(0, 7);
+        const monthPrefix = getISTMonthKey();
         const monthlyExpenses = expenses.filter((e) => e.date.startsWith(monthPrefix)).reduce((sum, e) => sum + e.amount, 0);
         const monthlyMembershipRevenue = msRows
           .filter((ms) => (ms.startDate || "").startsWith(monthPrefix))
@@ -85,6 +88,12 @@ const OwnerDashboard = () => {
       .finally(() => {
         setIsLoading(false);
       });
+  }, [reloadKey]);
+
+  useEffect(() => {
+    listPendingPasswordResetRequests()
+      .then((res) => setPendingPasswordResetCount(res.total))
+      .catch(() => setPendingPasswordResetCount(0));
   }, [reloadKey]);
 
   const expiring = members.filter((m: any) => {
@@ -147,7 +156,14 @@ const OwnerDashboard = () => {
         action={
           <>
             <Link to={`/${gymSlug}/owner/reminders`}>
-              <Button variant="outline" className="gap-2"><Bell className="w-4 h-4" /> Reminders</Button>
+              <Button variant="outline" className="gap-2 relative">
+                <Bell className="w-4 h-4" /> Reminders
+                {pendingPasswordResetCount > 0 && (
+                  <span className="absolute -top-2 -right-2 text-[10px] px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground font-semibold">
+                    {pendingPasswordResetCount}
+                  </span>
+                )}
+              </Button>
             </Link>
             <Link to={`/${gymSlug}/owner/members/new`}>
               <Button

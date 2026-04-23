@@ -11,6 +11,7 @@ class PublicGymSummary(BaseModel):
     tagline: str | None = None
     isActive: bool
     createdAt: str
+    planPricing: dict[str, float] | None = None
 
 
 class PublicGymDetail(PublicGymSummary):

@@ -10,8 +10,16 @@ from app.core.config import get_settings
 from app.core.observability import log_structured_error
 from app.core.security import create_access_token
 from app.db.mongo import get_db
-from app.dependencies.auth import get_current_user
-from app.modules.auth.schemas import AuthUserResponse, LoginPhoneRequest, LoginRequest, LoginResponse
+from app.dependencies.auth import get_current_user, require_roles
+from app.modules.auth.schemas import (
+    AuthUserResponse,
+    ChangePasswordRequiredPayload,
+    LoginPhoneRequest,
+    LoginRequest,
+    LoginResponse,
+    PasswordResetRequestCreatePayload,
+    PasswordResetRequestListResponse,
+)
 from app.modules.auth.service import AuthService
 from app.modules.auth.rate_limit import InMemoryRateLimiter
 from app.modules.notifications.service import NotificationsService
@@ -251,4 +259,38 @@ def logout_all_devices(response: Response, db: Annotated[Database, Depends(get_d
             context={"user_id": str(user.get("_id") or ""), "gym_id": str(user.get("gym_id") or "")},
         )
         raise
+
+
+@router.post("/change-password-required")
+def change_password_required(
+    payload: ChangePasswordRequiredPayload,
+    db: Annotated[Database, Depends(get_db)],
+    user=Depends(get_current_user),
+):
+    AuthService(db).change_password_required(actor=user, new_password=payload.newPassword)
+    return {"success": True}
+
+
+@router.post("/password-reset-request")
+def create_password_reset_request(payload: PasswordResetRequestCreatePayload, db: Annotated[Database, Depends(get_db)]):
+    return AuthService(db).create_password_reset_request(gym_slug=payload.gymSlug, identifier=payload.identifier.strip())
+
+
+@router.get(
+    "/password-reset-requests/pending",
+    response_model=PasswordResetRequestListResponse,
+    dependencies=[Depends(require_roles("owner", "super_admin"))],
+)
+def list_pending_password_reset_requests(db: Annotated[Database, Depends(get_db)], user=Depends(get_current_user)):
+    items = AuthService(db).list_pending_password_reset_requests(actor=user)
+    return PasswordResetRequestListResponse(items=items, total=len(items))
+
+
+@router.post(
+    "/password-reset-requests/{request_id}/approve",
+    dependencies=[Depends(require_roles("owner", "super_admin"))],
+)
+def approve_password_reset_request(request_id: str, db: Annotated[Database, Depends(get_db)], user=Depends(get_current_user)):
+    AuthService(db).approve_password_reset_request(actor=user, request_id=request_id)
+    return {"success": True}
 

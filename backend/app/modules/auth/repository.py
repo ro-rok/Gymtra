@@ -30,6 +30,37 @@ class AuthRepository:
             query["gym_id"] = gym_id
         return self.db.users.find_one(query)
 
+    def update_user_password(self, *, user_id: ObjectId, password_hash: str, must_change_password: bool) -> None:
+        self.db.users.update_one(
+            {"_id": user_id},
+            {
+                "$set": {
+                    "password_hash": password_hash,
+                    "must_change_password": must_change_password,
+                    "updated_at": self._now(),
+                }
+            },
+        )
+
+    def create_password_reset_request(self, payload: dict) -> dict:
+        result = self.db.password_reset_requests.insert_one(payload)
+        return self.db.password_reset_requests.find_one({"_id": result.inserted_id}) or payload
+
+    def get_password_reset_request(self, request_id: ObjectId) -> dict | None:
+        return self.db.password_reset_requests.find_one({"_id": request_id})
+
+    def list_password_reset_requests(self, *, gym_id: ObjectId, status: str = "pending") -> list[dict]:
+        return list(self.db.password_reset_requests.find({"gym_id": gym_id, "status": status}).sort("created_at", -1))
+
+    def update_password_reset_request(self, *, request_id: ObjectId, payload: dict) -> dict | None:
+        from pymongo import ReturnDocument
+
+        return self.db.password_reset_requests.find_one_and_update(
+            {"_id": request_id},
+            {"$set": payload},
+            return_document=ReturnDocument.AFTER,
+        )
+
     def create_refresh_token(self, payload: dict) -> None:
         self.db.refresh_tokens.insert_one(payload)
 

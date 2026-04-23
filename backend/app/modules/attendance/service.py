@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone, tzinfo
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -23,19 +23,22 @@ from app.modules.notifications.service import NotificationsService
 
 class AttendanceService:
     CHECKIN_RATE_LIMIT_SECONDS = 15
+    DEFAULT_TIMEZONE = "Asia/Kolkata"
 
     def __init__(self, db: Database):
         self.db = db
         self.repo = AttendanceRepository(db)
         self.settings = get_settings()
 
-    def _gym_timezone(self, gym_id: ObjectId) -> ZoneInfo:
+    def _gym_timezone(self, gym_id: ObjectId) -> tzinfo:
         gym = self.db.gyms.find_one({"_id": gym_id}, {"timezone": 1})
-        timezone_name = (gym or {}).get("timezone") or "UTC"
+        timezone_name = (gym or {}).get("timezone") or self.DEFAULT_TIMEZONE
         try:
             return ZoneInfo(timezone_name)
         except Exception:
-            return ZoneInfo("UTC")
+            # On Windows/Python builds without tzdata, ZoneInfo may fail.
+            # Fall back to fixed IST offset for attendance date consistency.
+            return timezone(timedelta(hours=5, minutes=30))
 
     def _day_key(self, *, gym_id: ObjectId, value: date | None = None) -> str:
         if value is not None:
@@ -74,6 +77,14 @@ class AttendanceService:
         if not gym_id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Gym context is required")
         return gym_id
+
+    @staticmethod
+    def _as_utc(dt: datetime | None) -> datetime | None:
+        if not isinstance(dt, datetime):
+            return None
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
 
     def _ensure_member_in_gym(self, *, member_id: str, gym_id: ObjectId) -> ObjectId:
         if not ObjectId.is_valid(member_id):
@@ -138,8 +149,8 @@ class AttendanceService:
         row = self.repo.get_attendance(gym_id=gym_id, member_id=member_id, day_key=day_key)
         if not row:
             return
-        updated_at = row.get("updated_at") or row.get("created_at")
-        if not isinstance(updated_at, datetime):
+        updated_at = self._as_utc(row.get("updated_at") or row.get("created_at"))
+        if not updated_at:
             return
         if (datetime.now(timezone.utc) - updated_at).total_seconds() < self.CHECKIN_RATE_LIMIT_SECONDS:
             raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Check-in attempted too frequently")

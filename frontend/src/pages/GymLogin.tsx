@@ -1,4 +1,4 @@
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Dumbbell, Crown, Users, User as UserIcon, Loader2, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/contexts/TenantContext";
 import { PageMeta } from "@/components/PageMeta";
 import { GymIdentity } from "@/components/GymIdentity";
+import { createPasswordResetRequest } from "@/lib/auth-api";
 
 const demoAccounts = [
   { role: "Owner", email: "owner@ironparadise.com", password: "owner123", icon: Crown, color: "primary", desc: "Full operational control" },
@@ -19,6 +20,7 @@ const demoAccounts = [
 const GymLogin = () => {
   const { gymSlug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, loginWithPhone, user, loading: authLoading } = useAuth();
   const { gym, loading: tenantLoading, error: tenantError, invalidTenant } = useTenant();
   const { toast } = useToast();
@@ -28,7 +30,11 @@ const GymLogin = () => {
   const [loginMode, setLoginMode] = useState<"phone" | "email">("phone");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [requestingReset, setRequestingReset] = useState(false);
+  const [resetIdentifier, setResetIdentifier] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const phoneError = loginMode === "phone" && phone.trim() && !/^\+?[0-9]{10,15}$/.test(phone.trim());
+  const redirectTo = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
 
   useEffect(() => {
     if (user && user.gymSlug === gymSlug) {
@@ -50,13 +56,32 @@ const GymLogin = () => {
     if (result.success) {
       const role = result.user?.role;
       const rolePath = role === "owner" ? "owner" : role === "trainer" ? "trainer" : "member";
-      navigate(`/${gymSlug}/${rolePath}`);
+      const safeRedirect =
+        redirectTo?.pathname?.startsWith(`/${gymSlug}/`) && redirectTo.pathname.includes(`/${rolePath}`)
+          ? `${redirectTo.pathname}${redirectTo.search || ""}`
+          : `/${gymSlug}/${rolePath}`;
+      navigate(safeRedirect);
     } else {
       toast({ title: "Login failed", description: result.error, variant: "destructive" });
     }
   };
 
   const useDemo = (e: string, p: string) => { setEmail(e); setPassword(p); setLoginMode("email"); };
+
+  const handleForgotPassword = async () => {
+    if (!gymSlug || !resetIdentifier.trim()) return;
+    setRequestingReset(true);
+    try {
+      await createPasswordResetRequest({ gymSlug, identifier: resetIdentifier.trim() });
+      toast({ title: "Request sent", description: "Owner has been notified. You will receive an email update." });
+      setShowForgotPassword(false);
+      setResetIdentifier("");
+    } catch (error) {
+      toast({ title: "Could not create request", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
+    } finally {
+      setRequestingReset(false);
+    }
+  };
 
   if (tenantLoading) {
     return (
@@ -175,6 +200,27 @@ const GymLogin = () => {
             <Button type="submit" className="w-full h-11 font-semibold gap-2 cta-glow hover:shadow-glow" disabled={loading || authLoading || phoneError}>
               {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</> : "Sign in"}
             </Button>
+            <button
+              type="button"
+              className="text-xs text-primary hover:underline"
+              onClick={() => setShowForgotPassword((prev) => !prev)}
+            >
+              Forgot password?
+            </button>
+            {showForgotPassword && (
+              <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
+                <Label htmlFor="reset-identifier" className="text-xs font-semibold uppercase tracking-wider">Email or phone</Label>
+                <Input
+                  id="reset-identifier"
+                  value={resetIdentifier}
+                  onChange={(e) => setResetIdentifier(e.target.value)}
+                  placeholder="member@email.com or +919876543210"
+                />
+                <Button type="button" size="sm" variant="outline" onClick={handleForgotPassword} disabled={requestingReset || !resetIdentifier.trim()}>
+                  {requestingReset ? "Submitting..." : "Request password reset"}
+                </Button>
+              </div>
+            )}
           </form>
 
           {/* Demo accounts */}

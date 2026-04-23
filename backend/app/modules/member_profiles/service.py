@@ -8,6 +8,7 @@ from app.core.audit import log_audit_event
 from app.core.security import hash_password
 from app.core.serializers import as_str_id
 from app.dependencies.auth import require_actor_gym_id
+from app.modules.auth.service import AuthService
 from app.modules.member_profiles.repository import MemberProfilesRepository
 from app.modules.member_profiles.schemas import (
     MemberCreateRequest,
@@ -57,6 +58,22 @@ class MemberProfilesService:
             status=row.get("status", "active"),
         )
 
+    def _as_utc(self, value: datetime | None) -> datetime | None:
+        if not isinstance(value, datetime):
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    def _normalize_member_status(self, value: str | None) -> str:
+        if value in {"active", "expired", "pending_renewal"}:
+            return value
+        # Membership sync may mark users as "inactive"; expose it as "expired"
+        # so API responses remain compatible with MemberStatus.
+        if value == "inactive":
+            return "expired"
+        return "active"
+
     def _to_member_summary(self, user: dict, profile: dict | None) -> MemberSummaryResponse:
         return MemberSummaryResponse(
             id=as_str_id(user.get("_id")) or "",
@@ -65,7 +82,7 @@ class MemberProfilesService:
             email=user.get("email", ""),
             phone=user.get("phone"),
             joinDate=(user.get("join_date") or datetime.now(timezone.utc)).strftime("%Y-%m-%d"),
-            status=user.get("status", "active"),
+            status=self._normalize_member_status(user.get("status")),
             avatar=user.get("avatar"),
             age=profile.get("age") if profile else None,
             gender=profile.get("gender") if profile else None,
@@ -77,15 +94,21 @@ class MemberProfilesService:
         gym_id = self._resolve_gym_id(actor)
         if self.repo.get_member_by_email(payload.email, gym_id):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
+        gym = self.db.gyms.find_one({"_id": gym_id})
+        if not gym:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Gym not found")
+        join_dt = datetime.combine(payload.joinDate, datetime.min.time(), tzinfo=timezone.utc)
+        default_password = AuthService.build_default_password(gym_name=gym.get("name", "Gym"), for_date=join_dt)
         user = self.repo.create_member_user(
             {
                 "name": payload.name,
                 "email": payload.email.lower().strip(),
                 "phone": payload.phone,
-                "password_hash": hash_password(payload.password),
+                "password_hash": hash_password(default_password),
                 "gym_id": gym_id,
-                "join_date": datetime.combine(payload.joinDate, datetime.min.time(), tzinfo=timezone.utc),
+                "join_date": join_dt,
                 "avatar": "".join([part[0] for part in payload.name.split(" ")[:2]]).upper(),
+                "must_change_password": True,
             }
         )
         profile = self.repo.upsert_profile(ObjectId(user["_id"]), gym_id, self._to_profile_payload(payload.model_dump()))
@@ -182,7 +205,7 @@ class MemberProfilesService:
             ms = memberships.get(str(user["_id"]))
             if not ms:
                 continue
-            end_date = ms.get("end_date")
+            end_date = self._as_utc(ms.get("end_date"))
             if end_date and end_date < now:
                 expired += 1
             elif end_date and end_date <= expiring_cutoff:

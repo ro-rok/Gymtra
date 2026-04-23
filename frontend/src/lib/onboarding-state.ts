@@ -1,6 +1,7 @@
 export interface OnboardingPricing {
   monthly: number;
   quarterly: number;
+  halfYearly: number;
 }
 
 interface OnboardingState {
@@ -54,7 +55,12 @@ export const isOnboardingComplete = (gymSlug: string) => Boolean(getOnboardingSt
 
 export const hasSavedPricing = (gymSlug: string) => {
   const state = getOnboardingState(gymSlug);
-  return Boolean(state.pricing && state.pricing.monthly > 0 && state.pricing.quarterly > 0);
+  return Boolean(
+    state.pricing
+    && state.pricing.monthly > 0
+    && state.pricing.quarterly > 0
+    && state.pricing.halfYearly > 0,
+  );
 };
 
 const getBool = (key: string) => window.localStorage.getItem(key) === "true";

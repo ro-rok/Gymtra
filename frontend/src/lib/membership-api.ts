@@ -5,6 +5,7 @@ type ApiMembership = {
   id: string;
   memberId: string;
   gymId: string;
+  renewedFromId?: string;
   plan: "monthly" | "quarterly" | "half_yearly";
   amount: number;
   startDate: string;
@@ -21,6 +22,7 @@ const toMembership = (m: ApiMembership): Membership => ({
   id: m.id,
   memberId: m.memberId,
   gymId: m.gymId,
+  renewedFromId: m.renewedFromId,
   plan: toUiPlan(m.plan),
   amount: m.amount,
   startDate: m.startDate,

@@ -1,5 +1,6 @@
 import { Zap, MapPin, CheckCircle2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
@@ -8,11 +9,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getMemberDashboardAttendanceTasksRequest, memberSelfCheckInRequest, verifyAttendanceQrRequest } from "@/lib/attendance-api";
 import { useToast } from "@/hooks/use-toast";
 import { Confetti } from "@/components/Confetti";
+import { formatISTLongDate, getISTDateString } from "@/lib/datetime";
 
 const CheckIn = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const today = new Date().toISOString().split("T")[0];
+  const [searchParams] = useSearchParams();
+  const today = getISTDateString();
   const [attendance, setAttendance] = useState<any[]>([]);
   const [qrToken, setQrToken] = useState("");
   const [scannerError, setScannerError] = useState<string | null>(null);
@@ -24,6 +27,7 @@ const CheckIn = () => {
   const alreadyCheckedIn = attendance.some((a) => a.date === today && a.status === "present");
   const [done, setDone] = useState(alreadyCheckedIn);
   const [celebrate, setCelebrate] = useState(false);
+  const [staticQrHandled, setStaticQrHandled] = useState(false);
 
   useEffect(() => {
     getMemberDashboardAttendanceTasksRequest()
@@ -103,6 +107,20 @@ const CheckIn = () => {
 
   useEffect(() => () => stopScanner(), []);
 
+  useEffect(() => {
+    const mode = searchParams.get("mode");
+    if (!user || mode !== "static" || staticQrHandled || done) return;
+    setStaticQrHandled(true);
+    verifyAttendanceQrRequest("", "static")
+      .then(() => {
+        setDone(true);
+        toast({ title: "Checked in from gym QR", description: "Attendance marked for today." });
+      })
+      .catch(() => {
+        toast({ title: "QR check-in failed", description: "Please try again from your gym app.", variant: "destructive" });
+      });
+  }, [searchParams, user, staticQrHandled, done, toast]);
+
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -131,7 +149,7 @@ const CheckIn = () => {
           {done ? "Logged!" : "I'm here"}
         </button>
         <div className="mt-5 text-sm text-muted-foreground inline-flex items-center gap-1.5">
-          <MapPin className="w-3.5 h-3.5" /> {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
+          <MapPin className="w-3.5 h-3.5" /> {formatISTLongDate()}
         </div>
         {done && <div className="mt-3 text-xs text-success font-semibold">{presentDays.size} sessions this month 🔥</div>}
       </div>
@@ -139,6 +157,9 @@ const CheckIn = () => {
       <h2 className="text-lg font-display font-semibold mt-8 mb-3">This month</h2>
       <div className="rounded-xl border border-border bg-card p-4 mb-4">
         <div className="text-sm font-medium mb-2">QR check-in</div>
+        <p className="text-xs text-muted-foreground mb-3">
+          Static gym QR opens this page and auto check-ins signed-in members. Use scanner/manual token only for dynamic QR tokens.
+        </p>
         <div className="mb-3 space-y-2">
           <video ref={videoRef} className="w-full max-h-56 rounded-lg border border-border bg-muted object-cover" muted playsInline />
           <div className="flex gap-2">
