@@ -49,7 +49,7 @@ npx web-push generate-vapid-keys
 
 Production uses a **same-origin API proxy** so session cookies attach to your Vercel domain (required for iOS installed PWAs):
 
-- [`frontend/vercel.json`](../frontend/vercel.json) — proxies `/api/:path*` to Render and falls back to `index.html` for client routes (fixes refresh 404 on `/gymSlug/member`, etc.)
+- [`frontend/vercel.json`](../frontend/vercel.json) — proxies `/api/:path*` to Render; other paths rewrite to `index.html` (fixes refresh 404 on `/admin/settings`, `/:gymSlug/member`, etc.)
 - `VITE_API_BASE_URL` — **empty** in production (browser calls `/api/v1/...` on the Vercel host)
 - `REFRESH_TOKEN_EXPIRE_DAYS=30` on Render — stay logged in up to 30 days with “Stay logged in” enabled
 - Optional **refresh token in localStorage** when cookies fail (strict privacy / older WebViews)

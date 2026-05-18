@@ -8,10 +8,7 @@
       "destination": "https://gymtra-api.onrender.com/api/:path*"
     },
     {
-      "handle": "filesystem"
-    },
-    {
-      "source": "/:path*",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
