@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/contexts/TenantContext";
 import { PageMeta } from "@/components/PageMeta";
 import { GymIdentity } from "@/components/GymIdentity";
-import { createPasswordResetRequest } from "@/lib/auth-api";
+import { createPasswordResetRequest, ownerForgotPasswordRequest } from "@/lib/auth-api";
 
 const demoAccounts = [
   { role: "Owner", email: "owner@ironparadise.com", password: "owner123", icon: Crown, color: "primary", desc: "Full operational control" },
@@ -32,7 +32,9 @@ const GymLogin = () => {
   const [loading, setLoading] = useState(false);
   const [requestingReset, setRequestingReset] = useState(false);
   const [resetIdentifier, setResetIdentifier] = useState("");
+  const [ownerResetEmail, setOwnerResetEmail] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotMode, setForgotMode] = useState<"member" | "owner">("member");
   const phoneError = loginMode === "phone" && phone.trim() && !/^\+?[0-9]{10,15}$/.test(phone.trim());
   const redirectTo = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
 
@@ -78,6 +80,24 @@ const GymLogin = () => {
       setResetIdentifier("");
     } catch (error) {
       toast({ title: "Could not create request", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
+    } finally {
+      setRequestingReset(false);
+    }
+  };
+
+  const handleOwnerForgotPassword = async () => {
+    if (!gymSlug || !ownerResetEmail.trim()) return;
+    setRequestingReset(true);
+    try {
+      await ownerForgotPasswordRequest({ gymSlug, email: ownerResetEmail.trim() });
+      toast({
+        title: "Request submitted",
+        description: "Super admin has been notified. They will share a temporary password manually.",
+      });
+      setOwnerResetEmail("");
+      setShowForgotPassword(false);
+    } catch (error) {
+      toast({ title: "Could not send reset link", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     } finally {
       setRequestingReset(false);
     }
@@ -209,16 +229,38 @@ const GymLogin = () => {
             </button>
             {showForgotPassword && (
               <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
-                <Label htmlFor="reset-identifier" className="text-xs font-semibold uppercase tracking-wider">Email or phone</Label>
-                <Input
-                  id="reset-identifier"
-                  value={resetIdentifier}
-                  onChange={(e) => setResetIdentifier(e.target.value)}
-                  placeholder="member@email.com or +919876543210"
-                />
-                <Button type="button" size="sm" variant="outline" onClick={handleForgotPassword} disabled={requestingReset || !resetIdentifier.trim()}>
-                  {requestingReset ? "Submitting..." : "Request password reset"}
-                </Button>
+                <div className="inline-flex rounded-lg border border-border p-1 text-xs">
+                  <button type="button" className={`px-3 py-1.5 rounded-md ${forgotMode === "member" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`} onClick={() => setForgotMode("member")}>Member</button>
+                  <button type="button" className={`px-3 py-1.5 rounded-md ${forgotMode === "owner" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`} onClick={() => setForgotMode("owner")}>Owner</button>
+                </div>
+                {forgotMode === "member" ? (
+                  <>
+                    <Label htmlFor="reset-identifier" className="text-xs font-semibold uppercase tracking-wider">Email or phone</Label>
+                    <Input
+                      id="reset-identifier"
+                      value={resetIdentifier}
+                      onChange={(e) => setResetIdentifier(e.target.value)}
+                      placeholder="member@email.com or +919876543210"
+                    />
+                    <Button type="button" size="sm" variant="outline" onClick={handleForgotPassword} disabled={requestingReset || !resetIdentifier.trim()}>
+                      {requestingReset ? "Submitting..." : "Request member reset"}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Label htmlFor="owner-reset-email" className="text-xs font-semibold uppercase tracking-wider">Owner email</Label>
+                    <Input
+                      id="owner-reset-email"
+                      type="email"
+                      value={ownerResetEmail}
+                      onChange={(e) => setOwnerResetEmail(e.target.value)}
+                      placeholder="owner@yourgym.com"
+                    />
+                    <Button type="button" size="sm" variant="outline" onClick={handleOwnerForgotPassword} disabled={requestingReset || !ownerResetEmail.trim()}>
+                      {requestingReset ? "Sending..." : "Send owner reset link"}
+                    </Button>
+                  </>
+                )}
               </div>
             )}
           </form>

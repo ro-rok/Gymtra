@@ -17,6 +17,9 @@ from app.modules.auth.schemas import (
     LoginPhoneRequest,
     LoginRequest,
     LoginResponse,
+    OwnerForgotPasswordPayload,
+    OwnerPasswordResetApprovalResponse,
+    OwnerPasswordResetRequestListResponse,
     PasswordResetRequestCreatePayload,
     PasswordResetRequestListResponse,
 )
@@ -28,6 +31,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
 LOGIN_RATE_LIMITER = InMemoryRateLimiter(max_requests=10, window_seconds=60)
 REFRESH_RATE_LIMITER = InMemoryRateLimiter(max_requests=30, window_seconds=60)
+OWNER_PASSWORD_RESET_RATE_LIMITER = InMemoryRateLimiter(max_requests=5, window_seconds=300)
 
 
 def _client_ip(request: Request) -> str:
@@ -274,6 +278,33 @@ def change_password_required(
 @router.post("/password-reset-request")
 def create_password_reset_request(payload: PasswordResetRequestCreatePayload, db: Annotated[Database, Depends(get_db)]):
     return AuthService(db).create_password_reset_request(gym_slug=payload.gymSlug, identifier=payload.identifier.strip())
+
+
+@router.post("/owner-forgot-password")
+def owner_forgot_password(payload: OwnerForgotPasswordPayload, request: Request, db: Annotated[Database, Depends(get_db)]):
+    key = f"{_client_ip(request)}:{payload.gymSlug}:{payload.email.lower().strip()}"
+    _rate_limit_or_raise(OWNER_PASSWORD_RESET_RATE_LIMITER, key, "auth.owner_forgot_password.rate_limited")
+    return AuthService(db).create_owner_password_reset_request(gym_slug=payload.gymSlug, email=payload.email)
+
+
+@router.get(
+    "/owner-password-reset-requests/pending",
+    response_model=OwnerPasswordResetRequestListResponse,
+    dependencies=[Depends(require_roles("super_admin"))],
+)
+def list_pending_owner_password_reset_requests(db: Annotated[Database, Depends(get_db)]):
+    items = AuthService(db).list_pending_owner_password_reset_requests()
+    return OwnerPasswordResetRequestListResponse(items=items, total=len(items))
+
+
+@router.post(
+    "/owner-password-reset-requests/{request_id}/approve",
+    response_model=OwnerPasswordResetApprovalResponse,
+    dependencies=[Depends(require_roles("super_admin"))],
+)
+def approve_owner_password_reset_request(request_id: str, db: Annotated[Database, Depends(get_db)], user=Depends(get_current_user)):
+    result = AuthService(db).approve_owner_password_reset_request(actor=user, request_id=request_id)
+    return OwnerPasswordResetApprovalResponse(**result)
 
 
 @router.get(

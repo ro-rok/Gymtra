@@ -37,6 +37,34 @@ class PasswordResetRequestCreatePayload(BaseModel):
     identifier: str
 
 
+class OwnerForgotPasswordPayload(BaseModel):
+    gymSlug: str
+    email: EmailStr
+
+
+class OwnerPasswordResetRequestItem(BaseModel):
+    id: str
+    gymId: str
+    gymSlug: str
+    gymName: str
+    ownerId: str
+    ownerName: str
+    ownerEmail: str
+    status: str
+    createdAt: str
+
+
+class OwnerPasswordResetRequestListResponse(BaseModel):
+    items: list[OwnerPasswordResetRequestItem]
+    total: int
+
+
+class OwnerPasswordResetApprovalResponse(BaseModel):
+    success: bool
+    ownerEmail: str
+    temporaryPassword: str
+
+
 class PasswordResetRequestItem(BaseModel):
     id: str
     memberId: str

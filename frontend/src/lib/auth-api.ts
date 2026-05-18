@@ -31,6 +31,27 @@ export interface PasswordResetRequestItem {
 export const createPasswordResetRequest = (payload: { gymSlug: string; identifier: string }) =>
   apiPost("/api/v1/auth/password-reset-request", payload);
 
+export const ownerForgotPasswordRequest = (payload: { gymSlug: string; email: string }) =>
+  apiPost("/api/v1/auth/owner-forgot-password", payload, { skipAuthHandling: true });
+
+export interface OwnerPasswordResetRequestItem {
+  id: string;
+  gymId: string;
+  gymSlug: string;
+  gymName: string;
+  ownerId: string;
+  ownerName: string;
+  ownerEmail: string;
+  status: string;
+  createdAt: string;
+}
+
+export const listPendingOwnerPasswordResetRequests = () =>
+  apiGet<{ items: OwnerPasswordResetRequestItem[]; total: number }>("/api/v1/auth/owner-password-reset-requests/pending");
+
+export const approveOwnerPasswordResetRequest = (requestId: string) =>
+  apiPost<{ success: boolean; ownerEmail: string; temporaryPassword: string }>(`/api/v1/auth/owner-password-reset-requests/${requestId}/approve`);
+
 export const listPendingPasswordResetRequests = () =>
   apiGet<{ items: PasswordResetRequestItem[]; total: number }>("/api/v1/auth/password-reset-requests/pending");
 

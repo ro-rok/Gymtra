@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import logging
+from secrets import choice
 
 from bson import ObjectId
 from fastapi import HTTPException, status
@@ -11,7 +12,7 @@ from app.core.mailer import send_email_async
 from app.core.security import generate_refresh_token, hash_password, hash_refresh_token, verify_password
 from app.core.serializers import as_str_id
 from app.modules.auth.repository import AuthRepository
-from app.modules.auth.schemas import AuthUserResponse, PasswordResetRequestItem
+from app.modules.auth.schemas import AuthUserResponse, OwnerPasswordResetRequestItem, PasswordResetRequestItem
 from app.modules.notifications.service import NotificationsService
 from app.modules.public.repository import PublicRepository
 
@@ -209,6 +210,89 @@ class AuthService:
             body=f"Member {member_name} requested a password reset. Approve it from dashboard reminders.",
         )
         return {"success": True, "requestId": as_str_id(request_doc.get("_id"))}
+
+    def create_owner_password_reset_request(self, *, gym_slug: str, email: str) -> dict:
+        gym = self.public_repo.get_gym_by_slug(gym_slug)
+        # Always return success to avoid account enumeration.
+        if not gym:
+            return {"success": True}
+        owner = self.repo.get_user_by_email(email=email, gym_id=gym["_id"], role="owner")
+        if not owner:
+            return {"success": True}
+        owner_id = owner.get("_id")
+        if not isinstance(owner_id, ObjectId):
+            return {"success": True}
+
+        now = datetime.now(timezone.utc)
+        existing = self.repo.get_pending_owner_password_reset_request(owner_id=owner_id, gym_id=gym["_id"])
+        if existing:
+            return {"success": True}
+        self.repo.create_owner_password_reset_request(
+            {
+                "owner_id": owner_id,
+                "gym_id": gym["_id"],
+                "status": "pending",
+                "created_at": now,
+                "updated_at": now,
+            }
+        )
+        return {"success": True}
+
+    def list_pending_owner_password_reset_requests(self) -> list[OwnerPasswordResetRequestItem]:
+        rows = self.repo.list_owner_password_reset_requests(status="pending")
+        items: list[OwnerPasswordResetRequestItem] = []
+        for row in rows:
+            owner = self.db.users.find_one({"_id": row.get("owner_id"), "role": "owner"}) or {}
+            gym = self.db.gyms.find_one({"_id": row.get("gym_id")}) or {}
+            items.append(
+                OwnerPasswordResetRequestItem(
+                    id=as_str_id(row.get("_id")) or "",
+                    gymId=as_str_id(row.get("gym_id")) or "",
+                    gymSlug=gym.get("slug", ""),
+                    gymName=gym.get("name", ""),
+                    ownerId=as_str_id(row.get("owner_id")) or "",
+                    ownerName=owner.get("name", "Owner"),
+                    ownerEmail=owner.get("email", ""),
+                    status=row.get("status", "pending"),
+                    createdAt=(row.get("created_at") or datetime.now(timezone.utc)).isoformat(),
+                )
+            )
+        return items
+
+    def approve_owner_password_reset_request(self, *, actor: dict, request_id: str) -> dict:
+        if not ObjectId.is_valid(request_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+        req = self.repo.get_owner_password_reset_request_by_id(ObjectId(request_id))
+        if not req or req.get("status") != "pending":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+
+        owner_id = req.get("owner_id")
+        gym_id = req.get("gym_id")
+        if not isinstance(owner_id, ObjectId):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request payload")
+        owner = self.db.users.find_one({"_id": owner_id, "gym_id": gym_id, "role": "owner"})
+        if not owner:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Owner not found")
+
+        chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
+        temp_password = "".join(choice(chars) for _ in range(12))
+        now = datetime.now(timezone.utc)
+        self.repo.update_user_password(user_id=owner_id, password_hash=hash_password(temp_password), must_change_password=True)
+        self.repo.revoke_all_refresh_tokens_for_user(owner_id, reason="owner_temp_password_reset")
+        self.repo.update_owner_password_reset_request(
+            request_id=ObjectId(request_id),
+            payload={
+                "status": "approved",
+                "approved_at": now,
+                "approved_by": actor.get("_id"),
+                "updated_at": now,
+            },
+        )
+        return {
+            "success": True,
+            "ownerEmail": owner.get("email", ""),
+            "temporaryPassword": temp_password,
+        }
 
     def list_pending_password_reset_requests(self, *, actor: dict) -> list[PasswordResetRequestItem]:
         gym_id = actor.get("gym_id")

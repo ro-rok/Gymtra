@@ -5,6 +5,7 @@ from typing import Any
 
 import jwt
 from passlib.context import CryptContext
+from passlib.exc import UnknownHashError
 
 from app.core.config import get_settings
 
@@ -16,7 +17,11 @@ def hash_password(raw_password: str) -> str:
 
 
 def verify_password(raw_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(raw_password, hashed_password)
+    try:
+        return pwd_context.verify(raw_password, hashed_password)
+    except (ValueError, UnknownHashError):
+        # Treat verification backend/input issues as auth failure, not 500.
+        return False
 
 
 def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None) -> str:
