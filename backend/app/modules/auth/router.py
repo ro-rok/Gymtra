@@ -22,6 +22,7 @@ from app.modules.auth.schemas import (
     OwnerPasswordResetRequestListResponse,
     PasswordResetRequestCreatePayload,
     PasswordResetRequestListResponse,
+    RefreshRequest,
 )
 from app.modules.auth.service import AuthService
 from app.modules.auth.rate_limit import InMemoryRateLimiter
@@ -117,7 +118,7 @@ def login(payload: LoginRequest, response: Response, request: Request, db: Annot
             "auth.login.success",
             extra={"event": "auth.login.success", "user_id": str(user["_id"]), "role": user["role"], "ip": _client_ip(request)},
         )
-        return LoginResponse(user=service.to_auth_user(user))
+        return LoginResponse(user=service.to_auth_user(user), refreshToken=refresh_token)
     except HTTPException:
         raise
     except Exception as exc:
@@ -152,7 +153,7 @@ def login_phone(payload: LoginPhoneRequest, response: Response, request: Request
             "auth.login_phone.success",
             extra={"event": "auth.login_phone.success", "user_id": str(user["_id"]), "role": user["role"], "ip": _client_ip(request)},
         )
-        return LoginResponse(user=service.to_auth_user(user))
+        return LoginResponse(user=service.to_auth_user(user), refreshToken=refresh_token)
     except HTTPException:
         raise
     except Exception as exc:
@@ -169,14 +170,18 @@ def login_phone(payload: LoginPhoneRequest, response: Response, request: Request
 def refresh_session(
     response: Response,
     request: Request,
+    payload: RefreshRequest | None = None,
     refresh_cookie: Annotated[str | None, Cookie(alias=get_settings().refresh_cookie_name)] = None,
     db: Database = Depends(get_db),
 ):
     try:
         _rate_limit_or_raise(REFRESH_RATE_LIMITER, _client_ip(request), "auth.refresh.rate_limited")
+        refresh_token = (refresh_cookie or "").strip() or (payload.refreshToken if payload else None) or ""
+        if not refresh_token:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token required")
         service = AuthService(db)
         user, new_refresh_token = service.rotate_refresh_session(
-            refresh_token=refresh_cookie or "",
+            refresh_token=refresh_token,
             user_agent=request.headers.get("user-agent"),
         )
         token = create_access_token(
@@ -191,7 +196,7 @@ def refresh_session(
         _set_refresh_cookie(response, new_refresh_token)
         log_audit_event(db, action="auth.refresh", actor_user_id=str(user["_id"]))
         logger.info("auth.refresh.success", extra={"event": "auth.refresh.success", "user_id": str(user["_id"]), "ip": _client_ip(request)})
-        return LoginResponse(user=service.to_auth_user(user))
+        return LoginResponse(user=service.to_auth_user(user), refreshToken=new_refresh_token)
     except HTTPException:
         raise
     except Exception as exc:

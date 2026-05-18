@@ -1,12 +1,12 @@
-WATER_LOG_ROUTE = "/member/dashboard#water-log"
+WATER_LOG_ROUTE = "/member#water-log"
 
 NOTIFICATION_ROUTE_MAP: dict[str, str] = {
     "water": WATER_LOG_ROUTE,
-    "meal_breakfast": "/member/dashboard",
-    "meal_lunch": "/member/dashboard",
-    "meal_dinner": "/member/dashboard",
-    "incomplete_daily_tasks": "/member/dashboard",
-    "password_reset_request": "/owner/dashboard",
+    "meal_breakfast": "/member",
+    "meal_lunch": "/member",
+    "meal_dinner": "/member",
+    "incomplete_daily_tasks": "/member",
+    "password_reset_request": "/owner",
     "platform_test": "/",
 }
 

@@ -2,7 +2,7 @@ import logging
 from typing import Annotated
 
 from bson import ObjectId
-from fastapi import Cookie, Depends, Header, HTTPException, Path, status
+from fastapi import Cookie, Depends, Header, HTTPException, Path, Request, status
 from jwt import InvalidTokenError
 from pymongo.database import Database
 
@@ -27,16 +27,26 @@ def enforce_resource_gym(resource_gym_id: ObjectId | None, actor: dict) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden for current gym")
 
 
+def _extract_bearer_token(request: Request) -> str | None:
+    auth_header = request.headers.get("Authorization") or ""
+    if not auth_header.lower().startswith("bearer "):
+        return None
+    token = auth_header[7:].strip()
+    return token or None
+
+
 def get_current_user(
+    request: Request,
     db: Annotated[Database, Depends(get_db)],
     token_cookie: Annotated[str | None, Cookie(alias=get_settings().auth_cookie_name)] = None,
     tenant_slug_header: Annotated[str | None, Header(alias="X-Tenant-Slug")] = None,
 ):
-    if not token_cookie:
+    access_token = token_cookie or _extract_bearer_token(request)
+    if not access_token:
         logger.warning("auth.debug.no_cookie")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     try:
-        payload = decode_access_token(token_cookie)
+        payload = decode_access_token(access_token)
     except InvalidTokenError as exc:
         logger.warning("auth.debug.token_decode_failed")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session token") from exc

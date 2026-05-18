@@ -1,34 +1,34 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useAuth } from "@/contexts/AuthContext";
 import { usePushRegistration } from "@/hooks/usePushRegistration";
+import { normalizeNotificationPath } from "@/lib/notification-routes";
 import { track } from "@/lib/tracking";
-
-const pathWithHash = (raw: string) => {
-  const parsed = new URL(raw, window.location.origin);
-  return parsed.pathname + parsed.search + parsed.hash;
-};
-
-const resolveNotificationPath = (url: string): string => {
-  if (!url) return "/";
-  if (url.startsWith("http")) {
-    try {
-      return pathWithHash(url);
-    } catch {
-      return "/";
-    }
-  }
-  const segments = window.location.pathname.split("/").filter(Boolean);
-  const gymSlug = segments[0];
-  if (gymSlug && (url.startsWith("/member") || url.startsWith("/owner")) && !url.startsWith(`/${gymSlug}/`)) {
-    return `/${gymSlug}${url}`;
-  }
-  return url;
-};
 
 export const useNotificationHandler = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { registerPushSubscription } = usePushRegistration();
+
+  const navigateToNotificationPath = useCallback(
+    (path: string) => {
+      const hashIndex = path.indexOf("#");
+      const pathname = hashIndex >= 0 ? path.slice(0, hashIndex) : path;
+      const hash = hashIndex >= 0 ? path.slice(hashIndex) : "";
+      const searchIndex = pathname.indexOf("?");
+      if (searchIndex >= 0) {
+        navigate({
+          pathname: pathname.slice(0, searchIndex),
+          search: pathname.slice(searchIndex),
+          hash,
+        });
+      } else {
+        navigate({ pathname, hash });
+      }
+    },
+    [navigate],
+  );
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -43,9 +43,9 @@ export const useNotificationHandler = () => {
 
       if (data.type === "NOTIFICATION_CLICKED" || data.type === "PUSH_RECEIVED") {
         if (data.url) {
-          const path = resolveNotificationPath(data.url);
+          const path = normalizeNotificationPath(data.url, user?.gymSlug);
           track("notification_clicked", { eventType: data.eventType, url: path });
-          navigate(path);
+          navigateToNotificationPath(path);
         }
       }
       if (data.type === "NOTIFICATION_CLOSED") {
@@ -55,5 +55,5 @@ export const useNotificationHandler = () => {
 
     navigator.serviceWorker.addEventListener("message", onMessage);
     return () => navigator.serviceWorker.removeEventListener("message", onMessage);
-  }, [navigate, registerPushSubscription]);
+  }, [navigateToNotificationPath, registerPushSubscription, user?.gymSlug]);
 };

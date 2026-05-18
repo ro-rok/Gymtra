@@ -7,6 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { PageMeta } from "@/components/PageMeta";
+import { getStayLoggedInPreference, setStayLoggedInPreference } from "@/lib/auth-storage";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ const AdminLogin = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [stayLoggedIn, setStayLoggedIn] = useState(() => getStayLoggedInPreference());
 
   useEffect(() => {
     if (user?.role === "super_admin") {
@@ -25,6 +28,7 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setStayLoggedInPreference(stayLoggedIn);
     setLoading(true);
     const result = await login(email, password);
     setLoading(false);
@@ -82,6 +86,13 @@ const AdminLogin = () => {
               </button>
             </div>
           </div>
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <Checkbox
+              checked={stayLoggedIn}
+              onCheckedChange={(v) => setStayLoggedIn(v === true)}
+            />
+            <span className="text-sm text-muted-foreground">Stay logged in on this device</span>
+          </label>
           <Button type="submit" className="w-full h-11 font-semibold gap-2 cta-glow hover:shadow-glow" disabled={loading || authLoading}>
             {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</> : "Continue"}
           </Button>

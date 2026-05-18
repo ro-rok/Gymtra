@@ -24,8 +24,13 @@ class AuthUserResponse(BaseModel):
     mustChangePassword: bool = False
 
 
+class RefreshRequest(BaseModel):
+    refreshToken: str | None = None
+
+
 class LoginResponse(BaseModel):
     user: AuthUserResponse
+    refreshToken: str | None = None
 
 
 class ChangePasswordRequiredPayload(BaseModel):

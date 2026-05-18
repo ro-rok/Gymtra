@@ -50,12 +50,17 @@ class NotificationsService:
         return not self.repo.has_recent_event(gym_id=gym_id, user_id=user_id, event_type=event_type)
 
     def _gym_slug(self, gym_id: str) -> str | None:
-        if not gym_id or not ObjectId.is_valid(gym_id):
+        if not gym_id:
             return None
-        gym = self.repo.db.gyms.find_one({"_id": ObjectId(gym_id)}, {"slug": 1})
+        gym = None
+        if ObjectId.is_valid(gym_id):
+            gym = self.repo.db.gyms.find_one({"_id": ObjectId(gym_id)}, {"slug": 1})
+        if not gym:
+            gym = self.repo.db.gyms.find_one({"slug": gym_id}, {"slug": 1})
         if not gym:
             return None
-        return gym.get("slug")
+        slug = gym.get("slug")
+        return slug if isinstance(slug, str) and slug else None
 
     @staticmethod
     def _build_payload(

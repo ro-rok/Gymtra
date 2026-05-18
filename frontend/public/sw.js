@@ -1,4 +1,4 @@
-const SW_VERSION = "2026.05.18.4";
+const SW_VERSION = "2026.05.18.6";
 const CACHE_NAME = `gymtra-shell-${SW_VERSION}`;
 const OFFLINE_PAGE = "/offline.html";
 const SHELL_FILES = [
@@ -13,12 +13,12 @@ const SHELL_FILES = [
 
 const DEFAULT_ROUTE = "/";
 const ROUTE_BY_EVENT = {
-  water: "/member/dashboard#water-log",
-  meal_breakfast: "/member/dashboard",
-  meal_lunch: "/member/dashboard",
-  meal_dinner: "/member/dashboard",
-  incomplete_daily_tasks: "/member/dashboard",
-  password_reset_request: "/owner/dashboard",
+  water: "/member#water-log",
+  meal_breakfast: "/member",
+  meal_lunch: "/member",
+  meal_dinner: "/member",
+  incomplete_daily_tasks: "/member",
+  password_reset_request: "/owner",
   platform_test: "/",
 };
 
@@ -33,7 +33,8 @@ const parsePushPayload = (event) => {
   }
   try {
     const payload = event.data.json();
-    const eventType = payload.eventType || "general";
+    const rawEventType = payload.eventType || "general";
+    const eventType = rawEventType.includes(":") ? rawEventType.split(":")[0] : rawEventType;
     return {
       title: payload.title || "Gymtra",
       body: payload.body || "",

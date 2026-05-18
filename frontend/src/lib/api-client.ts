@@ -1,4 +1,5 @@
 import { handleDemoRequest, isDemoPath } from "@/lib/demo-adapter";
+import { getStoredRefreshToken, setStoredRefreshToken } from "@/lib/auth-storage";
 
 const resolveDefaultBaseUrl = () => {
   if (typeof window === "undefined") return "http://localhost:8000";
@@ -22,11 +23,18 @@ export class ApiError extends Error {
 }
 
 const normalizeBaseUrl = (value?: string) => {
-  const base = value?.trim() || DEFAULT_BASE_URL;
-  return base.replace(/\/+$/, "");
+  const trimmed = value?.trim();
+  if (!trimmed) return "";
+  return trimmed.replace(/\/+$/, "");
 };
 
 export const API_BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
+
+const buildApiUrl = (path: string) => {
+  const pathWithQuery = path.startsWith("/") ? path : `/${path}`;
+  if (!API_BASE_URL) return pathWithQuery;
+  return `${API_BASE_URL}${pathWithQuery}`;
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -74,21 +82,43 @@ export const setAuthFailureHandler = (handler: (() => void | Promise<void>) | nu
 const shouldHandle401 = (path: string, options: RequestOptions) =>
   !options.skipAuthHandling && !options._retriedAfterRefresh && path !== REFRESH_PATH;
 
+interface RefreshResponse {
+  user?: unknown;
+  refreshToken?: string;
+}
+
+const postRefresh = async (refreshToken?: string | null) => {
+  const body = refreshToken ? { refreshToken } : undefined;
+  const response = await fetch(buildApiUrl(REFRESH_PATH), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!response.ok) return false;
+  const payload = (await response.json().catch(() => null)) as RefreshResponse | null;
+  if (payload?.refreshToken) {
+    setStoredRefreshToken(payload.refreshToken);
+  }
+  return true;
+};
+
 const attemptRefresh = async () => {
   if (!refreshInFlight) {
-    refreshInFlight = fetch(`${API_BASE_URL}${REFRESH_PATH}`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-    })
-      .then((res) => res.ok)
-      .catch(() => false)
-      .finally(() => {
-        refreshInFlight = null;
-      });
+    refreshInFlight = (async () => {
+      const cookieOk = await postRefresh();
+      if (cookieOk) return true;
+      const stored = getStoredRefreshToken();
+      if (!stored) return false;
+      return postRefresh(stored);
+    })().finally(() => {
+      refreshInFlight = null;
+    });
   }
   return refreshInFlight;
 };
+
+export const refreshSession = () => attemptRefresh();
 
 export const apiRequest = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
   const { method = "GET", body, headers, query, signal, tenantSlug } = options;
@@ -96,7 +126,7 @@ export const apiRequest = async <T>(path: string, options: RequestOptions = {}):
   if (isDemoPath()) {
     return handleDemoRequest<T>(pathWithQuery, method, body);
   }
-  const url = `${API_BASE_URL}${pathWithQuery}`;
+  const url = buildApiUrl(pathWithQuery);
 
   const response = await fetch(url, {
     method,

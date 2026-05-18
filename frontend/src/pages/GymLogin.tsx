@@ -10,6 +10,8 @@ import { useTenant } from "@/contexts/TenantContext";
 import { PageMeta } from "@/components/PageMeta";
 import { GymIdentity } from "@/components/GymIdentity";
 import { createPasswordResetRequest, ownerForgotPasswordRequest } from "@/lib/auth-api";
+import { getStayLoggedInPreference, setStayLoggedInPreference } from "@/lib/auth-storage";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const demoAccounts = [
   { role: "Owner", email: "owner@ironparadise.com", password: "owner123", icon: Crown, color: "primary", desc: "Full operational control" },
@@ -35,6 +37,7 @@ const GymLogin = () => {
   const [ownerResetEmail, setOwnerResetEmail] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotMode, setForgotMode] = useState<"member" | "owner">("member");
+  const [stayLoggedIn, setStayLoggedIn] = useState(() => getStayLoggedInPreference());
   const phoneError = loginMode === "phone" && phone.trim() && !/^\+?[0-9]{10,15}$/.test(phone.trim());
   const redirectTo = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
 
@@ -49,6 +52,7 @@ const GymLogin = () => {
     e.preventDefault();
     if (!gymSlug) return;
     if (loginMode === "phone" && phoneError) return;
+    setStayLoggedInPreference(stayLoggedIn);
     setLoading(true);
     const result =
       loginMode === "phone"
@@ -219,6 +223,13 @@ const GymLogin = () => {
                 </button>
               </div>
             </div>
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <Checkbox
+                checked={stayLoggedIn}
+                onCheckedChange={(v) => setStayLoggedIn(v === true)}
+              />
+              <span className="text-sm text-muted-foreground">Stay logged in on this device</span>
+            </label>
             <Button type="submit" className="w-full h-11 font-semibold gap-2 cta-glow hover:shadow-glow" disabled={loading || authLoading || phoneError}>
               {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</> : "Sign in"}
             </Button>

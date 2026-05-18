@@ -1,15 +1,35 @@
 import type { AuthUser } from "@/lib/types";
 import { apiGet, apiPost } from "@/lib/api-client";
+import { setStoredRefreshToken } from "@/lib/auth-storage";
 
 interface LoginResponse {
   user: AuthUser;
+  refreshToken?: string | null;
 }
 
+const persistRefreshFromResponse = (response: LoginResponse) => {
+  if (response.refreshToken) {
+    setStoredRefreshToken(response.refreshToken);
+  }
+};
+
 export const loginRequest = (payload: { email: string; password: string; gymSlug?: string }) =>
-  apiPost<LoginResponse>("/api/v1/auth/login", payload);
+  apiPost<LoginResponse>("/api/v1/auth/login", payload, { skipAuthHandling: true }).then((res) => {
+    persistRefreshFromResponse(res);
+    return res;
+  });
 
 export const loginPhoneRequest = (payload: { phone: string; password: string; gymSlug?: string }) =>
-  apiPost<LoginResponse>("/api/v1/auth/login-phone", payload);
+  apiPost<LoginResponse>("/api/v1/auth/login-phone", payload, { skipAuthHandling: true }).then((res) => {
+    persistRefreshFromResponse(res);
+    return res;
+  });
+
+export const refreshSessionRequest = () =>
+  apiPost<LoginResponse>("/api/v1/auth/refresh", undefined, { skipAuthHandling: true }).then((res) => {
+    persistRefreshFromResponse(res);
+    return res;
+  });
 
 export const meRequest = () => apiGet<AuthUser>("/api/v1/auth/me");
 

@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import type { AuthUser, Role } from "@/lib/types";
-import { ApiError, setAuthFailureHandler } from "@/lib/api-client";
+import { ApiError, refreshSession, setAuthFailureHandler } from "@/lib/api-client";
 import { loginPhoneRequest, loginRequest, logoutRequest, meRequest } from "@/lib/auth-api";
+import { clearStoredAuth } from "@/lib/auth-storage";
 import { unregisterPushSubscription } from "@/lib/push-api";
 
 interface AuthContextType {
@@ -16,30 +17,35 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const hydrateUser = async (): Promise<AuthUser | null> => {
+  try {
+    return await meRequest();
+  } catch {
+    const refreshed = await refreshSession();
+    if (!refreshed) return null;
+    try {
+      return await meRequest();
+    } catch {
+      return null;
+    }
+  }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const resumeRefreshTimer = useRef<number | null>(null);
 
   useEffect(() => {
     let mounted = true;
-    const hydrateSession = async () => {
-      try {
-        const authUser = await meRequest();
-        if (mounted) {
-          setUser(authUser);
-        }
-      } catch {
-        if (mounted) {
-          setUser(null);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+    const bootstrap = async () => {
+      const authUser = await hydrateUser();
+      if (mounted) {
+        setUser(authUser);
+        setLoading(false);
       }
     };
-
-    hydrateSession();
+    bootstrap();
     return () => {
       mounted = false;
     };
@@ -47,12 +53,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const handler = async () => {
+      clearStoredAuth();
       setUser(null);
       await unregisterPushSubscription().catch(() => undefined);
     };
     setAuthFailureHandler(handler);
     return () => setAuthFailureHandler(null);
   }, []);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || loading) return;
+      if (resumeRefreshTimer.current) window.clearTimeout(resumeRefreshTimer.current);
+      resumeRefreshTimer.current = window.setTimeout(async () => {
+        const ok = await refreshSession();
+        if (!ok) return;
+        try {
+          const authUser = await meRequest();
+          setUser(authUser);
+        } catch {
+          // Keep existing user until a protected request fails.
+        }
+      }, 500);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      if (resumeRefreshTimer.current) window.clearTimeout(resumeRefreshTimer.current);
+    };
+  }, [loading]);
 
   const login = useCallback(async (email: string, password: string, gymSlug?: string) => {
     try {
@@ -86,6 +115,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch {
       // Backends may not expose logout while cookie expires naturally.
     }
+    clearStoredAuth();
     await unregisterPushSubscription().catch(() => undefined);
     setUser(null);
   }, []);
@@ -93,12 +123,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isRole = useCallback((role: Role) => user?.role === role, [user]);
 
   const refreshUser = useCallback(async () => {
-    try {
-      const authUser = await meRequest();
-      setUser(authUser);
-    } catch {
-      setUser(null);
-    }
+    const authUser = await hydrateUser();
+    setUser(authUser);
   }, []);
 
   return (
