@@ -28,10 +28,12 @@ Copy-paste env files:
 
 | Setting | Value |
 |---------|--------|
-| Root directory | `frontend` |
-| Build command | `npm run build` |
+| Root directory | `frontend` (or repo root — root [`vercel.json`](../vercel.json) is provided as fallback) |
+| Build command | `npm run build` (root deploy: uses `vercel.json` at repo root) |
 | Output directory | `dist` |
 | Install command | `npm ci` |
+
+**Important:** After changing `vercel.json`, trigger a **new production deploy**. Without it, refresh on `/admin/settings` or `/:gymSlug/member` will still show Vercel’s `404: NOT_FOUND` page.
 
 ## Generate secrets (run locally)
 
