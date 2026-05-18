@@ -2,8 +2,22 @@ import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Settings as Cog, IndianRupee, Bell, Shield, Save } from "lucide-react";
+import { Settings as Cog, IndianRupee, Bell, Shield, Save, Send } from "lucide-react";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { sendTestBroadcastRequest } from "@/lib/admin-notifications-api";
+import { track } from "@/lib/tracking";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const Section = ({ icon: Icon, title, hint, children }: any) => (
   <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -30,7 +44,32 @@ const Field = ({ label, hint, children }: any) => (
 
 const AdminSettings = () => {
   const { toast } = useToast();
+  const [sendingTest, setSendingTest] = useState(false);
   const save = (what: string) => () => toast({ title: `${what} saved` });
+
+  const sendTestNotification = async () => {
+    setSendingTest(true);
+    try {
+      const res = await sendTestBroadcastRequest();
+      track("notification_sent", { scope: "platform_test", queued: res.queued });
+      const subs = res.activeSubscriptions ?? 0;
+      toast({
+        title: "Test notification queued",
+        description:
+          subs > 0
+            ? `Sent to ${res.queued} users. ${subs} device(s) have push enabled. Others must tap Allow notifications first.`
+            : `Queued for ${res.queued} users, but no devices have push enabled yet. Each user must tap Allow notifications in the app.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Test notification failed",
+        description: err instanceof Error ? err.message : "Try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingTest(false);
+    }
+  };
   return (
     <>
       <PageHeader title="Platform Settings" subtitle="Pricing, defaults, integrations." />
@@ -59,6 +98,33 @@ const AdminSettings = () => {
             <Field label="Auto-suspend after (days overdue)"><Input type="number" defaultValue={7} /></Field>
           </div>
           <Button onClick={save("Trial settings")} className="gap-2"><Save className="w-4 h-4" /> Save trial rules</Button>
+        </Section>
+
+        <Section icon={Bell} title="Push test" hint="Sends a test notification to all active owners and members.">
+          <p className="text-sm text-muted-foreground">
+            Use this to verify Web Push delivery across the platform. Limited to one broadcast every 10 minutes.
+          </p>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="gap-2" disabled={sendingTest}>
+                <Send className="w-4 h-4" /> Send test notification
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Send platform test notification?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will queue a push notification for every active owner and member. Title: Gymtra test notification.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={sendTestNotification} disabled={sendingTest}>
+                  {sendingTest ? "Sending…" : "Send now"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </Section>
 
         <Section icon={Cog} title="Integrations" hint="Surface these on owner dashboards once connected.">

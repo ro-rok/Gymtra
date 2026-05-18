@@ -28,6 +28,9 @@ class DailyTaskUpsertPayload(BaseModel):
     meal: bool
     water: bool
     waterLiters: float | None = Field(default=None, ge=0)
+    mealBreakfast: bool | None = None
+    mealLunch: bool | None = None
+    mealDinner: bool | None = None
 
 
 class AttendanceRecord(BaseModel):
@@ -50,6 +53,9 @@ class DailyTaskRecord(BaseModel):
     meal: bool
     water: bool
     waterLiters: float
+    mealBreakfast: bool = False
+    mealLunch: bool = False
+    mealDinner: bool = False
 
 
 class AttendanceDayResponse(BaseModel):

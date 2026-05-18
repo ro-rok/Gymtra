@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/PageHeader";
+﻿import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,8 @@ import { getMemberAttendance, getTaskStreak } from "@/lib/data-service";
 import { getMemberRequest, updateSelfMemberProfileRequest } from "@/lib/member-api";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Flame, Activity, Target, Save, User as UserIcon, Apple, Heart } from "lucide-react";
+import { Flame, Activity, Target, Save, User as UserIcon, Apple, Heart, Bell } from "lucide-react";
+import { ProfileNotificationSettings } from "@/components/ProfileNotificationSettings";
 
 const Section = ({ icon: Icon, title, children }: any) => (
   <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -28,36 +29,65 @@ const Field = ({ label, children }: any) => (
   </div>
 );
 
+const formatActivityLevel = (value?: string) =>
+  value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
+
+const memberToForm = (member: {
+  name?: string;
+  phone?: string;
+  email?: string;
+  age?: number;
+  gender?: string;
+  heightCm?: number;
+  currentWeightKg?: number;
+  goalWeightKg?: number;
+  activityLevel?: string;
+  foodPreference?: string;
+  allergies?: string;
+  medicalConditions?: string;
+}, fallbackName?: string) => ({
+  name: member.name || fallbackName || "",
+  phone: member.phone || "",
+  email: member.email || "",
+  age: member.age != null ? String(member.age) : "",
+  gender: member.gender || "",
+  heightCm: member.heightCm != null ? String(member.heightCm) : "",
+  currentWeightKg: member.currentWeightKg != null ? String(member.currentWeightKg) : "",
+  goalWeightKg: member.goalWeightKg != null ? String(member.goalWeightKg) : "",
+  activityLevel: formatActivityLevel(member.activityLevel),
+  foodPreference: member.foodPreference || "",
+  allergies: member.allergies || "",
+  medicalConditions: member.medicalConditions || "",
+});
+
 const MemberProfile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const memberId = user?.id || "";
   const [member, setMember] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState(() => memberToForm({}, user?.name));
+
   useEffect(() => {
-    if (!memberId) return;
+    if (!memberId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
     getMemberRequest(memberId)
-      .then(setMember)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load profile"));
-  }, [memberId]);
+      .then((data) => {
+        setMember(data);
+        setForm(memberToForm(data, user?.name));
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load profile"))
+      .finally(() => setLoading(false));
+  }, [memberId, user?.name]);
+
   const attendance = getMemberAttendance(memberId);
   const streak = getTaskStreak(memberId);
-
-  const [form, setForm] = useState({
-    name: member?.name || user?.name || "",
-    phone: member?.phone || "",
-    email: member?.email || "",
-    age: member?.age?.toString() || "",
-    gender: member?.gender || "",
-    heightCm: member?.heightCm?.toString() || "",
-    currentWeightKg: member?.currentWeightKg?.toString() || "",
-    goalWeightKg: member?.goalWeightKg?.toString() || "",
-    activityLevel: member?.activityLevel || "",
-    foodPreference: member?.foodPreference || "",
-    allergies: member?.allergies || "",
-    medicalConditions: member?.medicalConditions || "",
-  });
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [k]: e.target.value });
@@ -70,12 +100,15 @@ const MemberProfile = () => {
         heightCm: form.heightCm ? Number(form.heightCm) : undefined,
         currentWeightKg: form.currentWeightKg ? Number(form.currentWeightKg) : undefined,
         goalWeightKg: form.goalWeightKg ? Number(form.goalWeightKg) : undefined,
-        activityLevel: form.activityLevel ? form.activityLevel.toLowerCase().replace(" ", "_") : undefined,
+        activityLevel: form.activityLevel
+          ? (form.activityLevel.toLowerCase().replace(/\s+/g, "_") as "sedentary" | "lightly_active" | "active" | "athlete")
+          : undefined,
         foodPreference: form.foodPreference || undefined,
         allergies: form.allergies || undefined,
         medicalConditions: form.medicalConditions || undefined,
       });
       setMember(updated);
+      setForm(memberToForm(updated, user?.name));
       toast({ title: "Profile saved", description: "Your details are up to date." });
     } catch (err) {
       toast({ title: "Save failed", description: err instanceof Error ? err.message : "Try again." });
@@ -87,12 +120,13 @@ const MemberProfile = () => {
   const initials = (form.name || user?.name || "U").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
   const bmi = form.heightCm && form.currentWeightKg
     ? (Number(form.currentWeightKg) / ((Number(form.heightCm) / 100) ** 2)).toFixed(1)
-    : "—";
+    : "â€”";
 
   return (
     <>
-      <PageHeader title="Your Profile" subtitle="Keep this fresh — your trainer plans around it." />
-      {error && <div className="mb-4 text-sm text-destructive">{error}</div>}
+      <PageHeader title="Your Profile" subtitle="Keep this fresh â€” your trainer plans around it." />
+      {loading && <p className="mb-4 text-sm text-muted-foreground">Loading profileâ€¦</p>}
+      {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
 
       {/* Hero card */}
       <div className="rounded-3xl gradient-hero text-secondary-foreground p-6 md:p-8 mb-6 relative overflow-hidden">
@@ -105,7 +139,7 @@ const MemberProfile = () => {
           <div className="flex-1 min-w-0">
             <h2 className="text-2xl md:text-3xl font-display font-bold">{form.name || "Add your name"}</h2>
             <p className="text-secondary-foreground/70 text-sm mt-1">
-              Member since {member?.joinDate || "—"} · {member?.foodPreference || "Diet not set"}
+              Member since {member?.joinDate || "â€”"} Â· {member?.foodPreference || "Diet not set"}
             </p>
             <div className="flex flex-wrap gap-2 mt-3">
               <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full glass">
@@ -122,8 +156,15 @@ const MemberProfile = () => {
         </div>
       </div>
 
-      {/* Sectioned form */}
+      
+      
       <div className="space-y-5">
+        <Section icon={Bell} title="Notifications">
+          <div className="sm:col-span-2">
+            <ProfileNotificationSettings showReminderLink />
+          </div>
+        </Section>
+
         <Section icon={UserIcon} title="Personal info">
           <Field label="Full name"><Input value={form.name} onChange={set("name")} /></Field>
           <Field label="Phone"><Input value={form.phone} onChange={set("phone")} /></Field>
@@ -141,7 +182,7 @@ const MemberProfile = () => {
 
         <Section icon={Apple} title="Diet & allergies">
           <Field label="Food preference"><Input value={form.foodPreference} onChange={set("foodPreference")} placeholder="Veg / Non-veg / Egg" /></Field>
-          <Field label="Allergies"><Input value={form.allergies} onChange={set("allergies")} placeholder="Peanuts, dairy…" /></Field>
+          <Field label="Allergies"><Input value={form.allergies} onChange={set("allergies")} placeholder="Peanuts, dairyâ€¦" /></Field>
         </Section>
 
         <Section icon={Heart} title="Medical">
@@ -163,3 +204,4 @@ const MemberProfile = () => {
   );
 };
 export default MemberProfile;
+

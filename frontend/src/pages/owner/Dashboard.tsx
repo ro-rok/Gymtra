@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+﻿import { Link, useParams } from "react-router-dom";
 import { Users, AlertCircle, CalendarCheck, Receipt, MessageCircle, Plus, ArrowUpRight, Bell, Activity, CircleDollarSign } from "lucide-react";
 import { KpiCard, KpiCardSkeletonGrid } from "@/components/KpiCard";
 import { PageHeader } from "@/components/PageHeader";
@@ -15,6 +15,8 @@ import { listExpensesRequest } from "@/lib/expenses-api";
 import { getLastAction, setLastAction } from "@/lib/onboarding-state";
 import { listPendingPasswordResetRequests } from "@/lib/auth-api";
 import { getISTDateString, getISTMonthKey } from "@/lib/datetime";
+import { getOwnerAnalyticsOverviewRequest, type OwnerAnalyticsOverview } from "@/lib/analytics-api";
+import { AttendanceTrendChart, ReminderEngagementChart } from "@/components/Charts";
 
 const waLink = (phone: string, msg: string) =>
   `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(msg)}`;
@@ -42,6 +44,7 @@ const OwnerDashboard = () => {
   const [continuityHint, setContinuityHint] = useState<string | null>(null);
   const [postCompletionMomentum, setPostCompletionMomentum] = useState(false);
   const [pendingPasswordResetCount, setPendingPasswordResetCount] = useState(0);
+  const [analytics, setAnalytics] = useState<OwnerAnalyticsOverview | null>(null);
 
   useEffect(() => {
     if (!gymSlug) return;
@@ -96,10 +99,12 @@ const OwnerDashboard = () => {
       .catch(() => setPendingPasswordResetCount(0));
   }, [reloadKey]);
 
-  const expiring = members.filter((m: any) => {
-    const ms = memberships.find((membership) => membership.memberId === m.id);
-    return m.status !== "active" || ms?.status === "pending_renewal";
-  });
+  useEffect(() => {
+    getOwnerAnalyticsOverviewRequest()
+      .then(setAnalytics)
+      .catch(() => setAnalytics(null));
+  }, [reloadKey]);
+
   const ghosts = members.filter((m) => {
     const att = todayAttendance.filter((a) => a.memberId === m.id);
     return att.length === 0 && m.status === "active";
@@ -108,20 +113,28 @@ const OwnerDashboard = () => {
     const ms = memberships.find((membership) => membership.memberId === m.id);
     return ms?.status === "expired" || ms?.status === "pending_renewal";
   }).slice(0, 5);
-  const urgentRenewals = expiring.filter((m) => {
+  const urgentRenewals = members.filter((m) => {
     const ms = memberships.find((membership) => membership.memberId === m.id);
     const dueIn = dayDiffFromToday(ms?.expiryDate);
     return m.status === "expired" || (dueIn !== null && dueIn <= 0);
   });
-  const normalRenewals = expiring.filter((m) => !urgentRenewals.some((u) => u.id === m.id));
+  const normalRenewals = members.filter((m) => {
+    if (urgentRenewals.some((u) => u.id === m.id)) return false;
+    const ms = memberships.find((membership) => membership.memberId === m.id);
+    const dueIn = dayDiffFromToday(ms?.expiryDate);
+    return ms?.status === "pending_renewal" || (dueIn !== null && dueIn > 0 && dueIn <= 14);
+  });
   const urgentAttendance = ghosts.slice(0, 2);
   const normalAttendance = ghosts.slice(2);
 
-  const activeMembers = summary?.active ?? members.filter((m: any) => m.status === "active").length;
-  const renewalsDue = summary?.pendingRenewal ?? expiring.length;
-  const unpaidCount = summary?.unpaid ?? unpaidDues.length;
+  const hasSummary = summary !== null && !hasError && !isLoading;
+  const activeMembers = hasSummary ? summary.active : null;
+  const renewalsDue = hasSummary ? summary.pendingRenewal : null;
+  const unpaidCount = hasSummary ? (summary.unpaid > 0 ? summary.unpaid : unpaidDues.length) : null;
   const urgentCount = urgentRenewals.length + urgentAttendance.length + unpaidDues.length;
-  const isFirstTime = members.length === 0 || todayAttendance.length === 0;
+  const isFirstTime = members.length === 0;
+  const monthPrefix = getISTMonthKey();
+  const hasMonthlyMembershipRevenue = memberships.some((ms) => (ms.startDate || "").startsWith(monthPrefix));
 
   const recentActivity = [
     ...todayAttendance.slice(0, 3).map((att) => {
@@ -230,12 +243,31 @@ const OwnerDashboard = () => {
         <KpiCardSkeletonGrid count={4} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6" />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-          <Link to={`/${gymSlug}/owner/memberships`}><KpiCard label="Renewals due" value={renewalsDue} hint="Needs attention today" icon={AlertCircle} accent="warning" /></Link>
-          <Link to={`/${gymSlug}/owner/reminders`}><KpiCard label="Unpaid dues" value={unpaidCount} hint="Follow up now" icon={Receipt} accent="destructive" /></Link>
-          <Link to={`/${gymSlug}/owner/members`}><KpiCard label="Active members" value={activeMembers} hint="Business snapshot" icon={Users} accent="primary" /></Link>
-          <Link to={`/${gymSlug}/owner/expenses`}><KpiCard label="Net revenue (month)" value={`₹${monthRevenue.toLocaleString("en-IN")}`} hint="Memberships - expenses" icon={CircleDollarSign} accent="success" animated={false} /></Link>
+          <Link to={`/${gymSlug}/owner/memberships`}><KpiCard label="Renewals due" value={renewalsDue ?? "â€”"} hint={hasSummary ? "Expiring within 14 days" : "Loading summaryâ€¦"} icon={AlertCircle} accent="warning" animated={false} /></Link>
+          <Link to={`/${gymSlug}/owner/reminders`}><KpiCard label="Unpaid dues" value={unpaidCount ?? "â€”"} hint={hasSummary ? "Follow up now" : "Loading summaryâ€¦"} icon={Receipt} accent="destructive" animated={false} /></Link>
+          <Link to={`/${gymSlug}/owner/members`}><KpiCard label="Active members" value={activeMembers ?? "â€”"} hint={hasSummary ? "From live summary" : "Loading summaryâ€¦"} icon={Users} accent="primary" animated={false} /></Link>
+          <Link to={`/${gymSlug}/owner/expenses`}><KpiCard label="Net revenue (month)" value={`â‚¹${monthRevenue.toLocaleString("en-IN")}`} hint={hasMonthlyMembershipRevenue || monthRevenue !== 0 ? "Memberships - expenses" : "No membership revenue this month"} icon={CircleDollarSign} accent="success" animated={false} /></Link>
         </div>
       )}
+
+      {analytics && !isLoading ? (
+        <div className="grid lg:grid-cols-3 gap-6 mb-6">
+            <SectionCard title="Attendance trend" description="Daily check-ins (14 days)" className="lg:col-span-2">
+              <AttendanceTrendChart data={analytics.dailyAttendance} />
+            </SectionCard>
+            <SectionCard title="Engagement" description="Reminder pushes sent (7d)">
+              {analytics.reminderEngagement.length > 0 ? (
+                <ReminderEngagementChart data={analytics.reminderEngagement} />
+              ) : (
+                <p className="text-sm text-muted-foreground px-5 pb-4">No reminder activity yet this week.</p>
+              )}
+              <div className="px-5 pb-4 grid grid-cols-2 gap-3 text-xs text-muted-foreground border-t border-border pt-3">
+                <div>Avg check-ins / member (30d): <span className="text-foreground font-medium">{analytics.avgCheckInsPerMember}</span></div>
+                <div>7-day streaks: <span className="text-foreground font-medium">{analytics.membersWithStreak7Plus}</span></div>
+              </div>
+            </SectionCard>
+          </div>
+        ) : null}
 
       {!isLoading && isFirstTime && (
         <SectionCard title="Start here" description="Complete these quick actions to activate Gymtra." className="mb-6">
@@ -260,6 +292,19 @@ const OwnerDashboard = () => {
         <SectionCard title="What needs attention" description="Handle urgent queues first, then normal follow-up" className="lg:col-span-2">
           {isLoading ? (
             <SectionCardSkeletonRows rows={4} rowClassName="h-14" />
+          ) : members.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="Add members to see renewal insights"
+              description="Once members are on Gymtra, renewals and follow-ups appear here."
+              action={
+                <Link to={`/${gymSlug}/owner/members/new`}>
+                  <Button size="sm" className="min-h-10">Add member</Button>
+                </Link>
+              }
+              variant="embedded"
+              className="m-4"
+            />
           ) : (
             <div className="divide-y divide-border">
               <div className="px-5 py-4">
@@ -282,7 +327,7 @@ const OwnerDashboard = () => {
                       const ms = memberships.find((membership) => membership.memberId === m.id);
                       const dueIn = dayDiffFromToday(ms?.expiryDate);
                       return (
-                        <Link key={m.id} to={`/${gymSlug}/owner/members/${m.id}`} className="rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 flex items-center gap-3 hover:border-warning/50 transition-colors">
+                        <Link key={m.id} to={`/${gymSlug}/owner/members/${m.id}`} className="rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 flex flex-col sm:flex-row sm:items-center gap-3 hover:border-warning/50 transition-colors">
                           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold">{m.avatar}</div>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-sm truncate">{m.name}</div>
@@ -352,7 +397,7 @@ const OwnerDashboard = () => {
                           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold">{m.avatar}</div>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-sm truncate">{m.name}</div>
-                            <div className="text-xs text-foreground/80">Due {ms?.amount ? `₹${Number(ms.amount).toLocaleString("en-IN")}` : "amount unavailable"}</div>
+                            <div className="text-xs text-foreground/80">Due {ms?.amount ? `â‚¹${Number(ms.amount).toLocaleString("en-IN")}` : "amount unavailable"}</div>
                           </div>
                           <StatusBadge status={m.status} />
                           <Link to={`/${gymSlug}/owner/reminders`}>
@@ -440,7 +485,7 @@ const OwnerDashboard = () => {
         </SectionCard>
       </div>
 
-      {!isLoading && !hasError && (expiring.length > 0 || ghosts.length > 0 || unpaidCount > 0) && (
+      {!isLoading && !hasError && (urgentRenewals.length > 0 || normalRenewals.length > 0 || ghosts.length > 0 || (unpaidCount ?? 0) > 0) && (
         <div className="rounded-2xl border border-warning/30 bg-warning/5 p-4 mt-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 animate-fade-in">
           <div className="w-10 h-10 rounded-xl bg-warning/20 text-warning flex items-center justify-center shrink-0">
             <Bell className="w-5 h-5" />
@@ -463,3 +508,4 @@ const OwnerDashboard = () => {
 };
 
 export default OwnerDashboard;
+

@@ -155,14 +155,16 @@ const GymLogin = () => {
           <h1 className="text-4xl md:text-5xl font-display font-bold leading-tight">{gym.name}</h1>
           <p className="text-secondary-foreground/70 mt-4 text-lg max-w-2xl">{gym.tagline}</p>
           <div className="mt-10 flex flex-wrap gap-3.5">
-            <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full glass">
-              <Dumbbell className="w-3.5 h-3.5 text-primary" /> {gym.members} members
-            </span>
+            {typeof gym.members === "number" && gym.members > 0 && (
+              <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full glass">
+                <Dumbbell className="w-3.5 h-3.5 text-primary" /> {gym.members} members
+              </span>
+            )}
             <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full glass">
               📍 {gym.city}
             </span>
             <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full glass">
-              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" /> Open
+              Member sign-in
             </span>
           </div>
         </div>

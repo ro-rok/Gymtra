@@ -69,6 +69,9 @@ class AttendanceService:
             meal=bool(row.get("meal")),
             water=bool(row.get("water")),
             waterLiters=float(row.get("water_liters") or 0),
+            mealBreakfast=bool(row.get("meal_breakfast")),
+            mealLunch=bool(row.get("meal_lunch")),
+            mealDinner=bool(row.get("meal_dinner")),
         )
 
     @staticmethod
@@ -203,11 +206,19 @@ class AttendanceService:
         meal: bool,
         water: bool,
         water_liters: float | None,
+        meal_breakfast: bool | None = None,
+        meal_lunch: bool | None = None,
+        meal_dinner: bool | None = None,
     ) -> DailyTaskRecord:
         gym_id = self._resolve_actor_gym(actor)
         if actor.get("role") == "member":
             member_id = as_str_id(actor.get("_id")) or ""
         member_oid = self._ensure_member_in_gym(member_id=member_id, gym_id=gym_id)
+        mb = bool(meal_breakfast) if meal_breakfast is not None else False
+        ml = bool(meal_lunch) if meal_lunch is not None else False
+        md = bool(meal_dinner) if meal_dinner is not None else False
+        if meal and not (mb or ml or md):
+            mb = ml = md = True
         row = self.repo.upsert_daily_task(
             gym_id=gym_id,
             member_id=member_oid,
@@ -216,6 +227,9 @@ class AttendanceService:
             meal=meal,
             water=water,
             water_liters=float(water_liters or 0),
+            meal_breakfast=mb,
+            meal_lunch=ml,
+            meal_dinner=md,
         )
         if actor.get("role") == "member":
             NotificationsService(self.db).send_daily_task_reminder_if_needed(

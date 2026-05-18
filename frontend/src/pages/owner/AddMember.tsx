@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { createMemberRequest } from "@/lib/member-api";
+import { track } from "@/lib/tracking";
 import { createMembershipRequest } from "@/lib/membership-api";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -99,6 +100,9 @@ const AddMember = () => {
         amount: planPrices[form.plan as keyof typeof planPrices],
         startDate: form.startDate,
       });
+      const priorCount = Number(sessionStorage.getItem(`gymtra_member_count:${gymSlug}`) || 0);
+      if (priorCount === 0) track("owner_first_member_added", { memberId: member.id });
+      sessionStorage.setItem(`gymtra_member_count:${gymSlug}`, String(priorCount + 1));
       toast({ title: "Member added", description: `${form.name} is on the ${form.plan} plan.` });
       navigate(`/${gymSlug}/owner/members`);
     } catch (err) {

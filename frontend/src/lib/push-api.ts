@@ -1,4 +1,6 @@
-import { apiPost, apiRequest } from "@/lib/api-client";
+import { apiGet, apiPost, apiRequest } from "@/lib/api-client";
+import { iosWebPushRequiresInstall } from "@/lib/push-platform";
+import { waitForServiceWorkerRegistration } from "@/lib/pwa";
 
 export interface WebPushSubscriptionPayload {
   endpoint: string;
@@ -8,6 +10,56 @@ export interface WebPushSubscriptionPayload {
   };
   userAgent?: string;
 }
+
+export class PushNotAvailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PushNotAvailableError";
+  }
+}
+
+export const getVapidPublicKey = () =>
+  apiGet<{ publicKey: string }>("/api/v1/notifications/vapid-public-key");
+
+const urlBase64ToUint8Array = (base64String: string) => {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+};
+
+export const subscribeToPush = async (): Promise<PushSubscription | null> => {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    return null;
+  }
+  if (iosWebPushRequiresInstall()) {
+    throw new PushNotAvailableError(
+      "On iPhone, add Gymtra to your Home Screen, open it from there, then enable notifications.",
+    );
+  }
+
+  await waitForServiceWorkerRegistration();
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") return null;
+
+  const { publicKey } = await getVapidPublicKey();
+  if (!publicKey?.trim()) {
+    throw new Error("Push is not configured on the server (missing VAPID public key).");
+  }
+
+  const sw = await navigator.serviceWorker.ready;
+  const existing = await sw.pushManager.getSubscription();
+  if (existing) return existing;
+
+  return sw.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey),
+  });
+};
 
 export const savePushSubscription = (payload: WebPushSubscriptionPayload) =>
   apiPost("/api/v1/notifications/push-subscriptions", payload);
@@ -39,4 +91,3 @@ export const unregisterPushSubscription = async () => {
   }
   await subscription.unsubscribe().catch(() => undefined);
 };
-

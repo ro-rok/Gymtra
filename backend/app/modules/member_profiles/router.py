@@ -5,6 +5,7 @@ from pymongo.database import Database
 
 from app.db.mongo import get_db
 from app.dependencies.auth import get_current_user, require_roles
+from app.modules.member_profiles.reminder_preferences import ReminderPreferencesPatch, ReminderPreferencesResponse
 from app.modules.member_profiles.schemas import (
     MemberCreateRequest,
     MemberDashboardSummaryResponse,
@@ -59,6 +60,28 @@ def list_members(
 @router.patch("/me", response_model=MemberDetailResponse, dependencies=[Depends(require_roles("member"))])
 def update_self_profile(payload: MemberSelfUpdateRequest, db: Annotated[Database, Depends(get_db)], user=Depends(get_current_user)):
     return MemberProfilesService(db).update_own_profile(user, payload)
+
+
+@router.get(
+    "/me/reminder-preferences",
+    response_model=ReminderPreferencesResponse,
+    dependencies=[Depends(require_roles("member"))],
+)
+def get_reminder_preferences(db: Annotated[Database, Depends(get_db)], user=Depends(get_current_user)):
+    return MemberProfilesService(db).get_reminder_preferences(user)
+
+
+@router.patch(
+    "/me/reminder-preferences",
+    response_model=ReminderPreferencesResponse,
+    dependencies=[Depends(require_roles("member"))],
+)
+def update_reminder_preferences(
+    payload: ReminderPreferencesPatch,
+    db: Annotated[Database, Depends(get_db)],
+    user=Depends(get_current_user),
+):
+    return MemberProfilesService(db).update_reminder_preferences(user, payload)
 
 
 @router.get(

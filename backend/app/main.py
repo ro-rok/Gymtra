@@ -1,12 +1,14 @@
 from contextlib import asynccontextmanager
 import logging
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.db.mongo import get_db
+from app.modules.member_reminders.service import MemberRemindersService
 
 logger = logging.getLogger(__name__)
 DEFAULT_GYM_TIMEZONE = "Asia/Kolkata"
@@ -56,6 +58,8 @@ def ensure_indexes() -> None:
     db.staff_profiles.create_index([("gym_id", 1), ("user_id", 1)], unique=True)
     db.payroll_records.create_index([("gym_id", 1), ("month", -1), ("created_at", -1)])
     db.leave_records.create_index([("gym_id", 1), ("leave_date", -1)])
+    db.analytics_cache.create_index([("key", 1), ("gym_id", 1)], unique=True)
+    db.analytics_cache.create_index("expires_at", expireAfterSeconds=0)
     db.gyms.update_many(
         {
             "$or": [
@@ -68,11 +72,22 @@ def ensure_indexes() -> None:
     )
 
 
+def _run_member_reminders_job() -> None:
+    try:
+        MemberRemindersService(get_db()).run_due_reminders()
+    except Exception:
+        logger.exception("member_reminders.scheduled_run_failed")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     validate_runtime_security(settings)
     ensure_indexes()
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(_run_member_reminders_job, "interval", minutes=15, id="member_reminders")
+    scheduler.start()
     yield
+    scheduler.shutdown(wait=False)
 
 
 settings = get_settings()

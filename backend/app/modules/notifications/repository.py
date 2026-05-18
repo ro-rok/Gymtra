@@ -71,3 +71,26 @@ class NotificationsRepository:
         )
         return item is not None
 
+    def has_sent_dedupe_key(self, *, gym_id: str, user_id: str, dedupe_key: str) -> bool:
+        item = self.db.notification_logs.find_one(
+            {
+                "gym_id": gym_id,
+                "user_id": user_id,
+                "event_type": dedupe_key,
+                "status": "sent",
+            }
+        )
+        return item is not None
+
+    def has_recent_platform_broadcast(self, *, within_minutes: int = 10) -> bool:
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=within_minutes)
+        item = self.db.notification_logs.find_one(
+            {
+                "event_type": "platform_test",
+                "metadata.scope": "platform_broadcast",
+                "created_at": {"$gte": cutoff},
+                "status": "sent",
+            }
+        )
+        return item is not None
+

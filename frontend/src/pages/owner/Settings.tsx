@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Palette, IndianRupee, Bell, Save, Building2 } from "lucide-react";
+import { ProfileNotificationSettings } from "@/components/ProfileNotificationSettings";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/contexts/TenantContext";
 import { signTenantLogoUploadRequest, updateTenantLogoRequest, updateTenantPricingRequest } from "@/lib/tenant-api";
@@ -150,6 +151,10 @@ const Settings = () => {
           <Button onClick={handlePricingSave} className="gap-2" disabled={savingPricing}>
             <Save className="w-4 h-4" /> {savingPricing ? "Saving..." : "Save pricing"}
           </Button>
+        </Section>
+
+        <Section icon={Bell} title="Push notifications" hint="Alerts on this device for your gym.">
+          <ProfileNotificationSettings />
         </Section>
 
         <Section icon={Bell} title="Reminders & cadence" hint="When should members hear from you?">

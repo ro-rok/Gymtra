@@ -4,6 +4,7 @@ export interface ServiceWorkerUpdatePayload {
 }
 
 let updateHandler: ((payload: ServiceWorkerUpdatePayload) => void) | null = null;
+let registrationPromise: Promise<ServiceWorkerRegistration | null> | null = null;
 
 export const setServiceWorkerUpdateHandler = (
   handler: ((payload: ServiceWorkerUpdatePayload) => void) | null,
@@ -11,10 +12,12 @@ export const setServiceWorkerUpdateHandler = (
   updateHandler = handler;
 };
 
-export const registerServiceWorker = () => {
-  if (!("serviceWorker" in navigator)) return;
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
+export const waitForServiceWorkerRegistration = (): Promise<ServiceWorkerRegistration | null> => {
+  if (!("serviceWorker" in navigator)) {
+    return Promise.resolve(null);
+  }
+  if (!registrationPromise) {
+    registrationPromise = navigator.serviceWorker
       .register("/sw.js")
       .then((registration) => {
         navigator.serviceWorker.addEventListener("message", (event: MessageEvent<ServiceWorkerUpdatePayload>) => {
@@ -23,8 +26,13 @@ export const registerServiceWorker = () => {
           updateHandler?.(data);
         });
         registration.update().catch(() => undefined);
+        return registration;
       })
-      .catch(() => undefined);
-  });
+      .catch(() => null);
+  }
+  return registrationPromise;
 };
 
+export const registerServiceWorker = () => {
+  void waitForServiceWorkerRegistration();
+};

@@ -553,3 +553,45 @@
   50% { transform: translateX(3px); }
   75% { transform: translateX(-1.5px); }
 }
+
+@keyframes water-wave {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-2px) scaleY(1.02); }
+}
+
+.water-fill-layer {
+  transition: height 0.35s ease;
+}
+
+.water-surface {
+  animation: water-wave 2.4s ease-in-out infinite;
+}
+
+.water-plus-btn:active {
+  transform: scale(0.92);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+@media (display-mode: standalone) {
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+input[type="date"] {
+  color-scheme: dark light;
+  min-height: 2.5rem;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.85;
+}

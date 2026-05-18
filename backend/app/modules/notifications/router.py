@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from pymongo.database import Database
 
+from app.core.config import get_settings
 from app.core.serializers import as_str_id
 from app.db.mongo import get_db
 from app.dependencies.auth import get_current_user, require_roles
@@ -14,6 +15,12 @@ from app.modules.notifications.schemas import (
 from app.modules.notifications.service import NotificationsService
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+
+
+@router.get("/vapid-public-key")
+def get_vapid_public_key():
+    settings = get_settings()
+    return {"publicKey": settings.vapid_public_key}
 
 
 @router.post("/push-subscriptions")

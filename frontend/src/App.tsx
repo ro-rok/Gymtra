@@ -46,7 +46,9 @@ import MemberDiet from "./pages/member/Diet";
 import MemberProgress from "./pages/member/Progress";
 import MemberMembership from "./pages/member/Membership";
 import MemberProfilePage from "./pages/member/Profile";
+import MemberSettings from "./pages/member/Settings";
 import ChangePasswordRequired from "./pages/ChangePasswordRequired";
+import { PwaShell } from "@/components/PwaShell";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +59,7 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <BrowserRouter>
+          <PwaShell />
           <PageTransition>
             <Routes>
               <Route path="/" element={<Landing />} />
@@ -148,6 +151,7 @@ const App = () => (
               <Route path="progress" element={<MemberProgress />} />
               <Route path="membership" element={<MemberMembership />} />
               <Route path="profile" element={<MemberProfilePage />} />
+              <Route path="settings" element={<MemberSettings />} />
             </Route>
 
               <Route path="*" element={<NotFound />} />

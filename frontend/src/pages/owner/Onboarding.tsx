@@ -186,6 +186,7 @@ const OwnerOnboarding = () => {
         setLastAction(gymSlug, "onboarding_complete");
         completedRef.current = true;
         track("onboarding_completed", { gymSlug });
+        localStorage.setItem("gymtra_onboarding_completed", "1");
         navigate(`/${gymSlug}/owner`);
         return;
       }

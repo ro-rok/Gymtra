@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/contexts/TenantContext";
 import { listMembersRequest } from "@/lib/member-api";
 import { getAttendanceForDayRequest, markAttendanceRequest } from "@/lib/attendance-api";
+import { track } from "@/lib/tracking";
 import { useToast } from "@/hooks/use-toast";
 import QRCode from "qrcode";
 import { formatISTLongDate, getISTDateString } from "@/lib/datetime";
@@ -88,6 +89,12 @@ const Attendance = () => {
     const refreshed = await getAttendanceForDayRequest(today);
     setExisting(refreshed.items);
     const count = payloads.length;
+    const hadCheckin = sessionStorage.getItem(`gymtra_owner_checkin:${gymSlug}`) === "1";
+    const markedPresent = payloads.some(([, status]) => status === "present");
+    if (!hadCheckin && markedPresent) {
+      track("owner_first_checkin", { count });
+      sessionStorage.setItem(`gymtra_owner_checkin:${gymSlug}`, "1");
+    }
     toast({ title: "Attendance saved", description: `${count} member${count === 1 ? "" : "s"} updated for today.` });
   };
 

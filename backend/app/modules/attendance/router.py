@@ -85,6 +85,9 @@ def upsert_daily_tasks(
         meal=payload.meal,
         water=payload.water,
         water_liters=payload.waterLiters,
+        meal_breakfast=payload.mealBreakfast,
+        meal_lunch=payload.mealLunch,
+        meal_dinner=payload.mealDinner,
     )
 
 

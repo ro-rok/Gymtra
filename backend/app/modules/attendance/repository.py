@@ -65,14 +65,21 @@ class AttendanceRepository:
         meal: bool,
         water: bool,
         water_liters: float,
+        meal_breakfast: bool = False,
+        meal_lunch: bool = False,
+        meal_dinner: bool = False,
     ) -> dict:
         now = datetime.now(timezone.utc)
+        meal_complete = meal or meal_breakfast or meal_lunch or meal_dinner
         self.db.daily_tasks.update_one(
             {"gym_id": gym_id, "member_id": member_id, "day_key": day_key},
             {
                 "$set": {
                     "workout": workout,
-                    "meal": meal,
+                    "meal": meal_complete,
+                    "meal_breakfast": meal_breakfast,
+                    "meal_lunch": meal_lunch,
+                    "meal_dinner": meal_dinner,
                     "water": water,
                     "water_liters": water_liters,
                     "updated_at": now,

@@ -808,7 +808,7 @@ const Landing = () => {
                   <MapPin className="w-4 h-4 text-primary-neon/90" /> {gym.city}
                 </div>
                 <p className="text-sm text-text-muted mt-2 line-clamp-2">{gym.tagline || "Fitness, coaching, and accountability in one flow."}</p>
-                {typeof gym.members === "number" && (
+                {typeof gym.members === "number" && gym.members > 0 && (
                   <div className="mt-3 text-xs text-text-muted">{gym.members} members on Gymtra</div>
                 )}
                 <div className="mt-5 pt-4 border-t border-border/60 flex items-center justify-between text-sm font-semibold text-text-primary">

@@ -61,6 +61,18 @@ class MemberProfilesRepository:
     def get_latest_membership(self, member_id: ObjectId, gym_id: ObjectId) -> dict | None:
         return self.db.memberships.find_one({"user_id": member_id, "gym_id": gym_id}, sort=[("created_at", -1)])
 
+    def update_reminder_preferences(self, member_id: ObjectId, gym_id: ObjectId, preferences: dict) -> dict:
+        now = datetime.now(timezone.utc)
+        return self.db.member_profiles.find_one_and_update(
+            {"user_id": member_id, "gym_id": gym_id},
+            {
+                "$set": {"reminder_preferences": preferences, "updated_at": now},
+                "$setOnInsert": {"created_at": now},
+            },
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+
     def get_latest_memberships_by_member_ids(self, gym_id: ObjectId, member_ids: list[ObjectId]) -> dict[str, dict]:
         rows = list(
             self.db.memberships.find({"gym_id": gym_id, "user_id": {"$in": member_ids}}).sort(

@@ -32,7 +32,7 @@ export const AppShell = ({ brand, nav, children }: AppShellProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <PageMeta title={`${brand.name} | ${brand.role}`} canonicalPath={typeof window !== "undefined" ? window.location.pathname : "/"} noindex />
       {/* Desktop sidebar */}
       <aside className="hidden md:flex fixed inset-y-0 left-0 w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border z-40">
@@ -91,7 +91,7 @@ export const AppShell = ({ brand, nav, children }: AppShellProps) => {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="md:hidden sticky top-0 z-40 bg-secondary/95 backdrop-blur text-secondary-foreground border-b border-sidebar-border">
+      <header className="md:hidden sticky top-0 z-40 bg-secondary/95 backdrop-blur text-secondary-foreground border-b border-sidebar-border pt-[env(safe-area-inset-top,0px)]">
         <div className="flex items-center gap-3 px-4 h-14">
           <GymIdentity name={brand.name} logo={brand.logo} brandColor={brand.brandColor} size="sm" className="w-9 h-9 rounded-lg text-xs" />
           <div className="flex-1 min-w-0">
@@ -105,14 +105,14 @@ export const AppShell = ({ brand, nav, children }: AppShellProps) => {
       </header>
 
       {/* Main */}
-      <main className="md:pl-64 pb-24 md:pb-0">
-        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      <main className="md:pl-64 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-0">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full min-w-0">
           <PageTransition>{children}</PageTransition>
         </div>
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-secondary/95 backdrop-blur text-secondary-foreground border-t border-sidebar-border">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-secondary/95 backdrop-blur text-secondary-foreground border-t border-sidebar-border pb-[env(safe-area-inset-bottom,0px)]">
         <div className="grid grid-flow-col auto-cols-fr">
           {primaryNav.map((item) => (
             <NavLink

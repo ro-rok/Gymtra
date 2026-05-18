@@ -10,6 +10,13 @@ from app.core.serializers import as_str_id
 from app.dependencies.auth import require_actor_gym_id
 from app.modules.auth.service import AuthService
 from app.modules.member_profiles.repository import MemberProfilesRepository
+from app.modules.member_profiles.reminder_preferences import (
+    ReminderPreferencesPatch,
+    ReminderPreferencesResponse,
+    merge_reminder_preferences,
+    patch_to_storage,
+    reminder_preferences_to_response,
+)
 from app.modules.member_profiles.schemas import (
     MemberCreateRequest,
     MemberDashboardSummaryResponse,
@@ -191,6 +198,20 @@ class MemberProfilesService:
         profiles = self.repo.get_profiles_by_member_ids(gym_id, ids) if ids else {}
         items = [self._to_member_summary(user, profiles.get(str(user["_id"]))) for user in users]
         return MemberListResponse(items=items, total=len(items))
+
+    def get_reminder_preferences(self, actor: dict) -> ReminderPreferencesResponse:
+        gym_id = self._resolve_gym_id(actor)
+        profile = self.repo.get_profile(ObjectId(actor["_id"]), gym_id)
+        return reminder_preferences_to_response(profile.get("reminder_preferences") if profile else None)
+
+    def update_reminder_preferences(self, actor: dict, payload: ReminderPreferencesPatch) -> ReminderPreferencesResponse:
+        gym_id = self._resolve_gym_id(actor)
+        member_oid = ObjectId(actor["_id"])
+        profile = self.repo.get_profile(member_oid, gym_id)
+        existing = profile.get("reminder_preferences") if profile else None
+        merged = merge_reminder_preferences(existing, patch_to_storage(payload))
+        self.repo.update_reminder_preferences(member_oid, gym_id, merged)
+        return reminder_preferences_to_response(merged)
 
     def dashboard_summary(self, actor: dict) -> MemberDashboardSummaryResponse:
         gym_id = self._resolve_gym_id(actor)
