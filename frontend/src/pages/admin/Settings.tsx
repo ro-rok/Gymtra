@@ -2,10 +2,10 @@ import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Settings as Cog, IndianRupee, Bell, Shield, Save, Send } from "lucide-react";
+import { Settings as Cog, IndianRupee, Bell, Shield, Save, Send, Droplets } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { sendTestBroadcastRequest } from "@/lib/admin-notifications-api";
+import { sendTestBroadcastRequest, type TestBroadcastTemplate } from "@/lib/admin-notifications-api";
 import { track } from "@/lib/tracking";
 import {
   AlertDialog,
@@ -47,14 +47,18 @@ const AdminSettings = () => {
   const [sendingTest, setSendingTest] = useState(false);
   const save = (what: string) => () => toast({ title: `${what} saved` });
 
-  const sendTestNotification = async () => {
+  const sendTestNotification = async (template: TestBroadcastTemplate) => {
     setSendingTest(true);
     try {
-      const res = await sendTestBroadcastRequest();
-      track("notification_sent", { scope: "platform_test", queued: res.queued });
+      const res = await sendTestBroadcastRequest(template);
+      track("notification_sent", {
+        scope: template === "water" ? "platform_water_test" : "platform_test",
+        queued: res.queued,
+      });
       const subs = res.activeSubscriptions ?? 0;
+      const label = template === "water" ? "Water reminder" : "Test notification";
       toast({
-        title: "Test notification queued",
+        title: `${label} queued`,
         description:
           subs > 0
             ? `Sent to ${res.queued} users. ${subs} device(s) have push enabled. Others must tap Allow notifications first.`
@@ -102,29 +106,52 @@ const AdminSettings = () => {
 
         <Section icon={Bell} title="Push test" hint="Sends a test notification to all active owners and members.">
           <p className="text-sm text-muted-foreground">
-            Use this to verify Web Push delivery across the platform. Limited to one broadcast every 10 minutes.
+            Use this to verify Web Push delivery across the platform.
           </p>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" className="gap-2" disabled={sendingTest}>
-                <Send className="w-4 h-4" /> Send test notification
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Send platform test notification?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will queue a push notification for every active owner and member. Title: Gymtra test notification.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={sendTestNotification} disabled={sendingTest}>
-                  {sendingTest ? "Sending…" : "Send now"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <div className="flex flex-wrap gap-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="gap-2" disabled={sendingTest}>
+                  <Send className="w-4 h-4" /> Send test notification
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Send platform test notification?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will queue a push notification for every active owner and member. Title: Gymtra test notification.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => sendTestNotification("generic")} disabled={sendingTest}>
+                    {sendingTest ? "Sending…" : "Send now"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="gap-2" disabled={sendingTest}>
+                  <Droplets className="w-4 h-4" /> Drink water reminder
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Send drink water test?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Queues the real water reminder copy for every active owner and member. Title: Stay hydrated. Tapping opens the member dashboard.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => sendTestNotification("water")} disabled={sendingTest}>
+                    {sendingTest ? "Sending…" : "Send now"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </Section>
 
         <Section icon={Cog} title="Integrations" hint="Surface these on owner dashboards once connected.">
