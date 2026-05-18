@@ -41,6 +41,7 @@ export const WaterTracker = ({ liters, onChange, disabled, isLoading }: WaterTra
 
   return (
     <div
+      id="water-log"
       className={cn(
         "rounded-2xl border p-4 transition-all",
         goalReached || celebrateGoal

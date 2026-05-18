@@ -68,7 +68,7 @@ const defaultPrefs: ReminderPreferences = {
   waterEnabled: true,
   dietEnabled: true,
   workoutEnabled: true,
-  waterTimes: ["10:00", "14:00", "18:00"],
+  waterTimes: Array.from({ length: 15 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`),
   mealTimes: { breakfast: "08:00", lunch: "13:00", dinner: "20:00" },
 };
 
@@ -136,7 +136,7 @@ const MemberSettings = () => {
           />
         </SettingsSection>
 
-        <SettingsSection icon={Droplets} title="Water reminders" hint="Gentle nudges at your preferred times.">
+        <SettingsSection icon={Droplets} title="Water reminders" hint="Hourly nudges from 8 AM to 10 PM on your dashboard.">
           <ToggleRow
             label="Water reminders"
             helper="Water reminders help maintain daily consistency."

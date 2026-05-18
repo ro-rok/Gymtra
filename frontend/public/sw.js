@@ -1,4 +1,4 @@
-const SW_VERSION = "2026.05.18.3";
+const SW_VERSION = "2026.05.18.4";
 const CACHE_NAME = `gymtra-shell-${SW_VERSION}`;
 const OFFLINE_PAGE = "/offline.html";
 const SHELL_FILES = [
@@ -13,7 +13,7 @@ const SHELL_FILES = [
 
 const DEFAULT_ROUTE = "/";
 const ROUTE_BY_EVENT = {
-  water: "/member/dashboard",
+  water: "/member/dashboard#water-log",
   meal_breakfast: "/member/dashboard",
   meal_lunch: "/member/dashboard",
   meal_dinner: "/member/dashboard",
@@ -126,7 +126,8 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const href = event.notification?.data?.url || resolveNotificationUrl(DEFAULT_ROUTE);
   const eventType = event.notification?.data?.eventType || "general";
-  const path = new URL(href).pathname + new URL(href).search;
+  const clicked = new URL(href, self.location.origin);
+  const path = clicked.pathname + clicked.search + clicked.hash;
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {

@@ -1,5 +1,7 @@
+WATER_LOG_ROUTE = "/member/dashboard#water-log"
+
 NOTIFICATION_ROUTE_MAP: dict[str, str] = {
-    "water": "/member/dashboard",
+    "water": WATER_LOG_ROUTE,
     "meal_breakfast": "/member/dashboard",
     "meal_lunch": "/member/dashboard",
     "meal_dinner": "/member/dashboard",

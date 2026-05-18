@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useParams, Link, useLocation } from "react-router-dom";
 import {
   Zap,
   Utensils,
@@ -114,6 +114,7 @@ const CheckInChecklistRow = ({
 
 const MemberDashboard = () => {
   const { gymSlug } = useParams();
+  const location = useLocation();
   const { user } = useAuth();
   const {
     today,
@@ -133,10 +134,22 @@ const MemberDashboard = () => {
   const [membership, setMembership] = useState<{ expiryDate?: string } | null>(null);
   const [checkInTimeLabel, setCheckInTimeLabel] = useState<string | null>(null);
 
+  const scrollToWaterLog = useCallback(() => {
+    const el = document.getElementById("water-log");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
+
   useEffect(() => {
     const visits = Number(localStorage.getItem("gymtra_dashboard_visits") || 0) + 1;
     localStorage.setItem("gymtra_dashboard_visits", String(visits));
   }, []);
+
+  useEffect(() => {
+    if (location.hash !== "#water-log") return;
+    if (isLoading) return;
+    const timer = window.setTimeout(scrollToWaterLog, 150);
+    return () => window.clearTimeout(timer);
+  }, [location.hash, isLoading, scrollToWaterLog]);
 
   useEffect(() => {
     listMembershipsRequest()

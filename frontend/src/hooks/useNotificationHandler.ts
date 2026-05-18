@@ -4,10 +4,16 @@ import { useNavigate } from "react-router-dom";
 import { usePushRegistration } from "@/hooks/usePushRegistration";
 import { track } from "@/lib/tracking";
 
+const pathWithHash = (raw: string) => {
+  const parsed = new URL(raw, window.location.origin);
+  return parsed.pathname + parsed.search + parsed.hash;
+};
+
 const resolveNotificationPath = (url: string): string => {
-  if (!url || url.startsWith("http")) {
+  if (!url) return "/";
+  if (url.startsWith("http")) {
     try {
-      return url ? new URL(url).pathname + new URL(url).search : "/";
+      return pathWithHash(url);
     } catch {
       return "/";
     }

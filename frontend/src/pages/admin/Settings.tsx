@@ -140,7 +140,7 @@ const AdminSettings = () => {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Send drink water test?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Queues the real water reminder copy for every active owner and member. Title: Stay hydrated. Tapping opens the member dashboard.
+                    Queues the real water reminder copy for every active owner and member. Title: Stay hydrated. Tapping opens the dashboard water log section.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

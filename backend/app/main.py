@@ -84,7 +84,7 @@ async def lifespan(_: FastAPI):
     validate_runtime_security(settings)
     ensure_indexes()
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(_run_member_reminders_job, "interval", minutes=15, id="member_reminders")
+    scheduler.add_job(_run_member_reminders_job, "interval", minutes=5, id="member_reminders")
     scheduler.start()
     yield
     scheduler.shutdown(wait=False)

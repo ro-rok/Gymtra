@@ -4,7 +4,11 @@ from zoneinfo import ZoneInfo
 
 from pymongo.database import Database
 
-from app.modules.member_profiles.reminder_preferences import DEFAULT_MEAL_TIMES, DEFAULT_WATER_TIMES
+from app.modules.member_profiles.reminder_preferences import (
+    DEFAULT_MEAL_TIMES,
+    WATER_REMINDER_END_HOUR,
+    WATER_REMINDER_START_HOUR,
+)
 from app.modules.member_reminders.repository import MemberRemindersRepository
 from app.modules.notifications.service import NotificationsService
 
@@ -37,6 +41,14 @@ class MemberRemindersService:
     @staticmethod
     def _minutes_since_midnight(hour: int, minute: int) -> int:
         return hour * 60 + minute
+
+    def _water_reminder_window_index(self, now_local: datetime) -> int | None:
+        hour = now_local.hour
+        if hour < WATER_REMINDER_START_HOUR or hour > WATER_REMINDER_END_HOUR:
+            return None
+        if now_local.minute > WINDOW_TOLERANCE_MINUTES:
+            return None
+        return hour - WATER_REMINDER_START_HOUR
 
     def _is_in_window(self, *, now_local: datetime, target_hhmm: str) -> tuple[bool, int]:
         parsed = self._parse_hhmm(target_hhmm)
@@ -105,17 +117,14 @@ class MemberRemindersService:
                 prefs = member.get("reminder_preferences") or {}
                 task = self.repo.get_daily_task(gym_id=gym_id, member_id=member["user_id"], day_key=day_key)
                 if prefs.get("water_enabled", True):
-                    water_times = prefs.get("water_times") or DEFAULT_WATER_TIMES
-                    for idx, hhmm in enumerate(water_times):
-                        in_window, _ = self._is_in_window(now_local=now_local, target_hhmm=hhmm)
-                        if not in_window or self._should_skip_water(task):
-                            continue
+                    water_idx = self._water_reminder_window_index(now_local)
+                    if water_idx is not None and not self._should_skip_water(task):
                         if self._dispatch_reminder(
                             category="water",
                             gym_id=gym_id,
                             user_id=member["user_id"],
                             day_key=day_key,
-                            window_index=idx,
+                            window_index=water_idx,
                         ):
                             sent += 1
                 if prefs.get("diet_enabled", True):

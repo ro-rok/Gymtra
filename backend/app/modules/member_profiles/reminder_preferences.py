@@ -2,7 +2,16 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-DEFAULT_WATER_TIMES = ["10:00", "14:00", "18:00"]
+WATER_REMINDER_START_HOUR = 8
+WATER_REMINDER_END_HOUR = 22
+
+
+def hourly_water_times() -> list[str]:
+    return [f"{hour:02d}:00" for hour in range(WATER_REMINDER_START_HOUR, WATER_REMINDER_END_HOUR + 1)]
+
+
+DEFAULT_WATER_TIMES = hourly_water_times()
+LEGACY_WATER_TIMES = ["10:00", "14:00", "18:00"]
 DEFAULT_MEAL_TIMES = {"breakfast": "08:00", "lunch": "13:00", "dinner": "20:00"}
 
 
@@ -61,6 +70,12 @@ def merge_reminder_preferences(existing: dict | None, patch: dict) -> dict:
     return base
 
 
+def normalize_water_times(times: list[str] | None) -> list[str]:
+    if not times or times == LEGACY_WATER_TIMES:
+        return list(DEFAULT_WATER_TIMES)
+    return list(times)
+
+
 def reminder_preferences_to_response(doc: dict | None) -> ReminderPreferencesResponse:
     prefs = merge_reminder_preferences(doc, {})
     meal_times = prefs.get("meal_times") or DEFAULT_MEAL_TIMES
@@ -69,7 +84,7 @@ def reminder_preferences_to_response(doc: dict | None) -> ReminderPreferencesRes
         waterEnabled=bool(prefs.get("water_enabled", True)),
         dietEnabled=bool(prefs.get("diet_enabled", True)),
         workoutEnabled=bool(prefs.get("workout_enabled", True)),
-        waterTimes=list(prefs.get("water_times") or DEFAULT_WATER_TIMES),
+        waterTimes=normalize_water_times(prefs.get("water_times")),
         mealTimes=MealTimesPreferences(
             breakfast=meal_times.get("breakfast", "08:00"),
             lunch=meal_times.get("lunch", "13:00"),
