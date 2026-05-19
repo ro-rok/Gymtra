@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.modules.admin_gyms.router import router as admin_gyms_router
+from app.modules.admin_system.router import router as admin_system_router
 from app.modules.admin_notifications.router import router as admin_notifications_router
 from app.modules.admin_subscriptions.router import router as admin_subscriptions_router
 from app.modules.analytics.router import router as analytics_router
@@ -22,6 +23,7 @@ from app.modules.tenants.router import router as tenants_router
 
 api_router = APIRouter()
 api_router.include_router(admin_gyms_router)
+api_router.include_router(admin_system_router)
 api_router.include_router(admin_notifications_router)
 api_router.include_router(admin_subscriptions_router)
 api_router.include_router(analytics_router)

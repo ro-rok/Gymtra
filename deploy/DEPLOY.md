@@ -24,6 +24,8 @@ Copy-paste env files:
 | Start command | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
 | Health check path | `/health` |
 
+**Render free tier:** The API self-pings `GET /api/keepalive` every 14 minutes when `RENDER` is set (automatic on Render). This prevents spin-down from idle timeouts. Super admins can verify last ping time on `/admin` (Platform Overview).
+
 ## Vercel project settings
 
 | Setting | Value |

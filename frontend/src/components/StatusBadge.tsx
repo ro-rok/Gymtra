@@ -9,6 +9,9 @@ const map: Record<string, string> = {
   trial: "bg-accent/15 text-accent border-accent/30",
   suspended: "bg-muted text-muted-foreground border-border",
   inactive: "bg-muted text-muted-foreground border-border",
+  healthy: "bg-success/15 text-success border-success/30",
+  stale: "bg-warning/20 text-warning border-warning/40",
+  waiting: "bg-accent/15 text-accent border-accent/30",
 };
 
 const labels: Record<string, string> = {
@@ -20,6 +23,9 @@ const labels: Record<string, string> = {
   trial: "Trial",
   suspended: "Suspended",
   inactive: "Inactive",
+  healthy: "Running",
+  stale: "Stale",
+  waiting: "Waiting",
 };
 
 const dotColor: Record<string, string> = {
@@ -31,6 +37,9 @@ const dotColor: Record<string, string> = {
   trial: "bg-accent",
   suspended: "bg-muted-foreground",
   inactive: "bg-muted-foreground",
+  healthy: "bg-success",
+  stale: "bg-warning",
+  waiting: "bg-accent",
 };
 
 export const StatusBadge = ({ status, withDot = true }: { status: string; withDot?: boolean }) => (

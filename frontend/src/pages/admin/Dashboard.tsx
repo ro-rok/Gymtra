@@ -5,16 +5,37 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { SectionCard } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { listAdminGymsRequest } from "@/lib/admin-api";
+import { getKeepaliveStatusRequest, listAdminGymsRequest, type KeepaliveStatus } from "@/lib/admin-api";
 import { listAdminSubscriptionsRequest, toSubscription } from "@/lib/subscription-admin-api";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { format, formatDistanceToNow } from "date-fns";
 import { getPlatformAnalyticsOverviewRequest, type PlatformAnalyticsOverview } from "@/lib/analytics-api";
 import { PlatformTrendChart } from "@/components/Charts";
+
+const formatNextPing = (seconds: number | null) => {
+  if (seconds == null) return "—";
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+};
+
+const keepaliveBadgeStatus = (status: KeepaliveStatus | null): string => {
+  if (!status?.enabled) return "inactive";
+  if (!status.lastPingAt) return "waiting";
+  return status.isHealthy ? "healthy" : "stale";
+};
 
 const AdminDashboard = () => {
   const [gyms, setGyms] = useState<any[]>([]);
   const [subs, setSubs] = useState<any[]>([]);
   const [platformAnalytics, setPlatformAnalytics] = useState<PlatformAnalyticsOverview | null>(null);
+  const [keepalive, setKeepalive] = useState<KeepaliveStatus | null>(null);
+
+  const loadKeepalive = useCallback(() => {
+    getKeepaliveStatusRequest()
+      .then(setKeepalive)
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     Promise.all([listAdminGymsRequest(), listAdminSubscriptionsRequest(), getPlatformAnalyticsOverviewRequest()])
@@ -25,6 +46,12 @@ const AdminDashboard = () => {
       })
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    loadKeepalive();
+    const timer = window.setInterval(loadKeepalive, 60_000);
+    return () => window.clearInterval(timer);
+  }, [loadKeepalive]);
   const totalMembers = gyms.reduce((s, g: any) => s + (g.members || 0), 0);
   const activeGyms = gyms.filter(g => g.isActive).length;
   const mrr = subs.filter(s => s.status === "active").reduce((sum, s) => sum + (s.monthlyAmount || 0) + Math.max(0, s.usedSeats - 1) * (s.extraSeatPrice || 0), 0);
@@ -49,6 +76,52 @@ const AdminDashboard = () => {
         <KpiCard label="MRR" value={`â‚¹${mrr.toLocaleString("en-IN")}`} hint="recurring" icon={CreditCard} accent="success" animated={false} />
         <KpiCard label="Seat Utilization" value={`${seatUtil}%`} hint={`${usedSeats}/${totalSeats}`} icon={TrendingUp} accent="warning" animated={false} />
       </div>
+
+      <SectionCard title="API Keep-Alive" className="mb-6">
+        <div className="px-5 py-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Activity className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold">Render instance wake-up</div>
+                <div className="text-xs text-muted-foreground">
+                  Self-ping every {keepalive ? Math.round(keepalive.intervalSeconds / 60) : 14} minutes
+                </div>
+              </div>
+            </div>
+            <StatusBadge status={keepaliveBadgeStatus(keepalive)} />
+          </div>
+          {keepalive ? (
+            <div className="grid sm:grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Last ping</div>
+                <div className="font-medium mt-1">
+                  {keepalive.lastPingAt
+                    ? format(new Date(keepalive.lastPingAt), "d MMM yyyy, h:mm a")
+                    : "Not yet"}
+                </div>
+                {keepalive.lastPingAt ? (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {formatDistanceToNow(new Date(keepalive.lastPingAt), { addSuffix: true })}
+                  </div>
+                ) : null}
+              </div>
+              <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Next ping (est.)</div>
+                <div className="font-medium mt-1">{formatNextPing(keepalive.nextPingInSeconds)}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {keepalive.pingCount} total ping{keepalive.pingCount === 1 ? "" : "s"}
+                  {keepalive.enabled ? " on Render" : " (local — service disabled)"}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">Loading keep-alive status…</div>
+          )}
+        </div>
+      </SectionCard>
 
       {platformAnalytics ? (
         <div className="grid lg:grid-cols-3 gap-6 mb-6">

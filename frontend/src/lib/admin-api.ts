@@ -77,3 +77,18 @@ export const updateAdminGymStatusRequest = async (gymId: string, isActive: boole
   const row = await apiPatch<AdminGym>(`/api/v1/admin/gyms/${gymId}/status`, { isActive });
   return toGym(row);
 };
+
+export type KeepaliveStatus = {
+  enabled: boolean;
+  lastPingAt: string | null;
+  lastStatus: string | null;
+  lastMessage: string | null;
+  pingCount: number;
+  intervalSeconds: number;
+  isHealthy: boolean;
+  secondsSinceLastPing: number | null;
+  nextPingInSeconds: number | null;
+};
+
+export const getKeepaliveStatusRequest = () =>
+  apiGet<KeepaliveStatus>("/api/v1/admin/system/keepalive");

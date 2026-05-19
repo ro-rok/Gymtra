@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import logging
+import os
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
@@ -7,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.core.keepalive import keepalive_service
+from app.core.keepalive_status import record_keepalive_ping
 from app.db.mongo import get_db
 from app.modules.member_reminders.service import MemberRemindersService
 
@@ -86,7 +89,10 @@ async def lifespan(_: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.add_job(_run_member_reminders_job, "interval", minutes=5, id="member_reminders")
     scheduler.start()
+    if os.getenv("RENDER"):
+        keepalive_service.start()
     yield
+    await keepalive_service.stop()
     scheduler.shutdown(wait=False)
 
 
@@ -105,4 +111,14 @@ app.include_router(api_router, prefix=settings.api_prefix)
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/api/keepalive")
+def keepalive():
+    last_ping_at = record_keepalive_ping(status="ok", message="Keep-alive ping successful")
+    return {
+        "status": "ok",
+        "message": "Keep-alive ping successful",
+        "last_ping_at": last_ping_at.isoformat(),
+    }
 
