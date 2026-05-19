@@ -211,7 +211,7 @@ const MemberDiet = () => {
             </div>
           ) : (
             <div className="mb-8 rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
-              No recommended plan for today yet. Ask your gym to seed the weekly vegetarian library.
+              No meal plan for today yet. Refresh the page, or contact your gym if this continues.
             </div>
           )}
 
@@ -254,7 +254,7 @@ const MemberDiet = () => {
               <div className="text-sm">
                 <div className="font-semibold">Want a personalized plan?</div>
                 <div className="text-xs text-muted-foreground">
-                  Your gym can assign a custom template, or run the weekly vegetarian diet seed.
+                  Your trainer can also assign a custom plan from the gym dashboard.
                 </div>
               </div>
             </div>

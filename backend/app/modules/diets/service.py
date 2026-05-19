@@ -6,6 +6,7 @@ from pymongo.database import Database
 
 from app.core.audit import log_audit_event
 from app.core.serializers import as_str_id
+from app.modules.diets.default_templates import ensure_default_diet_templates
 from app.modules.diets.repository import DietsRepository
 from app.core.datetime_ist import get_ist_weekday
 from app.modules.diets.nutrition_goal import derive_nutrition_goal, nutrition_goal_label
@@ -161,6 +162,15 @@ class DietsService:
             template=self._to_template(template) if template else None,
         )
 
+    def _ensure_weekly_library_if_needed(self, gym_id: ObjectId) -> None:
+        """Load 21 default vegetarian weekly plans into MongoDB for this gym if missing."""
+        has_weekly = self.db.diet_templates.count_documents(
+            {"gym_id": gym_id, "weekday": {"$exists": True}},
+            limit=1,
+        )
+        if has_weekly == 0:
+            ensure_default_diet_templates(self.db, gym_id)
+
     def _get_member_weights(self, member_oid: ObjectId, gym_id: ObjectId) -> tuple[float | None, float | None]:
         profile = self.db.member_profiles.find_one({"user_id": member_oid, "gym_id": gym_id})
         if not profile:
@@ -180,6 +190,8 @@ class DietsService:
         if not target_member_id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Member id is required")
         member_oid = self._ensure_member_in_gym(target_member_id, gym_id)
+
+        self._ensure_weekly_library_if_needed(gym_id)
 
         current_kg, goal_kg = self._get_member_weights(member_oid, gym_id)
         nutrition_goal = derive_nutrition_goal(current_kg, goal_kg)
