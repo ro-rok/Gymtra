@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { getMemberAttendance, getTaskStreak } from "@/lib/data-service";
+import { getTaskStreak } from "@/lib/data-service";
 import { getMemberRequest, updateSelfMemberProfileRequest } from "@/lib/member-api";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -87,7 +87,7 @@ const MemberProfile = () => {
       .finally(() => setLoading(false));
   }, [memberId, user?.name]);
 
-  const attendance = getMemberAttendance(memberId);
+  const sessionCount = member?.sessionCount ?? 0;
   const streak = getTaskStreak(memberId);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -147,7 +147,7 @@ const MemberProfile = () => {
                 <Flame className="w-3 h-3 text-warning" /> {streak}-day streak
               </span>
               <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full glass">
-                <Activity className="w-3 h-3 text-primary" /> {attendance.length} sessions
+                <Activity className="w-3 h-3 text-primary" /> {sessionCount} sessions
               </span>
               <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full glass">
                 <Target className="w-3 h-3 text-accent" /> BMI {bmi}

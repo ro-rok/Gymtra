@@ -8,6 +8,7 @@ from app.core.audit import log_audit_event
 from app.core.security import hash_password
 from app.core.serializers import as_str_id
 from app.dependencies.auth import require_actor_gym_id
+from app.modules.attendance.repository import AttendanceRepository
 from app.modules.auth.service import AuthService
 from app.modules.member_profiles.repository import MemberProfilesRepository
 from app.modules.member_profiles.reminder_preferences import (
@@ -177,6 +178,7 @@ class MemberProfilesService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
         profile = self.repo.get_profile(member_oid, gym_id)
         membership = self.repo.get_latest_membership(member_oid, gym_id)
+        session_count = AttendanceRepository(self.db).count_present_sessions(gym_id=gym_id, member_id=member_oid)
         summary = self._to_member_summary(user, profile)
         return MemberDetailResponse(
             **summary.model_dump(),
@@ -189,6 +191,7 @@ class MemberProfilesService:
             bodyFatPct=profile.get("body_fat_pct") if profile else None,
             measurements=profile.get("measurements") if profile else None,
             membership=self._membership_snapshot(membership),
+            sessionCount=session_count,
         )
 
     def list_members(self, actor: dict, q: str | None, status_filter: str | None) -> MemberListResponse:

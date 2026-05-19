@@ -92,6 +92,7 @@ class MemberDetailResponse(MemberSummaryResponse):
     bodyFatPct: float | None = None
     measurements: dict[str, float] | None = None
     membership: MembershipSnapshot | None = None
+    sessionCount: int = 0
 
 
 class MemberListResponse(BaseModel):

@@ -63,7 +63,7 @@ const MemberProfile = () => {
   }
 
   const chartData = progress.map(p => ({ date: p.date.slice(5), weight: p.weightKg }));
-  const attendance = [];
+  const sessionCount = m.sessionCount ?? 0;
 
   const handleAssign = async (templateId: string) => {
     await assignDietTemplateRequest({ memberId: m.id, templateId });
@@ -82,7 +82,7 @@ const MemberProfile = () => {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiCard label="Goal" value={m.goalWeightKg ? `${m.goalWeightKg}kg` : "—"} icon={Target} accent="primary" animated={false} />
-        <KpiCard label="Sessions" value={attendance.length} hint="all-time" icon={Activity} accent="success" />
+        <KpiCard label="Sessions" value={sessionCount} hint="all-time check-ins" icon={Activity} accent="success" />
         <KpiCard label="Plan ends" value={ms?.expiryDate?.slice(5) || "—"} icon={Calendar} accent="warning" animated={false} />
         <KpiCard label="Weight" value={m.currentWeightKg ? `${m.currentWeightKg}kg` : "—"} icon={Flame} accent="accent" animated={false} />
       </div>

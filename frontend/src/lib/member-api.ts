@@ -22,6 +22,7 @@ type ApiMember = {
   mealTimings?: string;
   bodyFatPct?: number;
   measurements?: Record<string, number>;
+  sessionCount?: number;
 };
 
 type ApiListResponse = { items: ApiMember[]; total: number };
@@ -55,6 +56,7 @@ const toMemberProfile = (api: ApiMember): MemberProfile => ({
   joinDate: api.joinDate,
   avatar: api.avatar || api.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase(),
   status: api.status,
+  sessionCount: api.sessionCount ?? 0,
 });
 
 export const listMembersRequest = async (q?: string, status?: string): Promise<MemberProfile[]> => {

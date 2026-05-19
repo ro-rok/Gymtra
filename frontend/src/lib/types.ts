@@ -58,6 +58,7 @@ export interface MemberProfile {
   joinDate: string;
   avatar: string;
   status: "active" | "expired" | "pending_renewal";
+  sessionCount?: number;
 }
 
 // ── Membership ──

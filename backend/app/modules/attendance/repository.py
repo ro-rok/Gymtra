@@ -55,6 +55,11 @@ class AttendanceRepository:
             self.db.attendance.find({"gym_id": gym_id, "member_id": member_id}).sort("day_key", -1).limit(limit)
         )
 
+    def count_present_sessions(self, *, gym_id: ObjectId, member_id: ObjectId) -> int:
+        return self.db.attendance.count_documents(
+            {"gym_id": gym_id, "member_id": member_id, "status": "present"}
+        )
+
     def upsert_daily_task(
         self,
         *,
