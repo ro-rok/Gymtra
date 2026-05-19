@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Flame, Activity, Target, Save, User as UserIcon, Apple, Heart, Bell } from "lucide-react";
 import { ProfileNotificationSettings } from "@/components/ProfileNotificationSettings";
+import { EM_DASH, ELLIPSIS, MIDDLE_DOT } from "@/lib/format-currency";
 
 const Section = ({ icon: Icon, title, children }: any) => (
   <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -120,12 +121,12 @@ const MemberProfile = () => {
   const initials = (form.name || user?.name || "U").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
   const bmi = form.heightCm && form.currentWeightKg
     ? (Number(form.currentWeightKg) / ((Number(form.heightCm) / 100) ** 2)).toFixed(1)
-    : "â€”";
+    : EM_DASH;
 
   return (
     <>
-      <PageHeader title="Your Profile" subtitle="Keep this fresh â€” your trainer plans around it." />
-      {loading && <p className="mb-4 text-sm text-muted-foreground">Loading profileâ€¦</p>}
+      <PageHeader title="Your Profile" subtitle={`Keep this fresh ${EM_DASH} your trainer plans around it.`} />
+      {loading && <p className="mb-4 text-sm text-muted-foreground">Loading profile{ELLIPSIS}</p>}
       {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
 
       {/* Hero card */}
@@ -139,7 +140,7 @@ const MemberProfile = () => {
           <div className="flex-1 min-w-0">
             <h2 className="text-2xl md:text-3xl font-display font-bold">{form.name || "Add your name"}</h2>
             <p className="text-secondary-foreground/70 text-sm mt-1">
-              Member since {member?.joinDate || "â€”"} Â· {member?.foodPreference || "Diet not set"}
+              Member since {member?.joinDate || EM_DASH} {MIDDLE_DOT} {member?.foodPreference || "Diet not set"}
             </p>
             <div className="flex flex-wrap gap-2 mt-3">
               <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full glass">
@@ -182,7 +183,7 @@ const MemberProfile = () => {
 
         <Section icon={Apple} title="Diet & allergies">
           <Field label="Food preference"><Input value={form.foodPreference} onChange={set("foodPreference")} placeholder="Veg / Non-veg / Egg" /></Field>
-          <Field label="Allergies"><Input value={form.allergies} onChange={set("allergies")} placeholder="Peanuts, dairyâ€¦" /></Field>
+          <Field label="Allergies"><Input value={form.allergies} onChange={set("allergies")} placeholder={`Peanuts, dairy${ELLIPSIS}`} /></Field>
         </Section>
 
         <Section icon={Heart} title="Medical">

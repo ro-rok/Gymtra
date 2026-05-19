@@ -4,6 +4,7 @@ import { KpiCard } from "@/components/KpiCard";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Users, TrendingUp } from "lucide-react";
 import { listAdminGymsRequest } from "@/lib/admin-api";
+import { formatInr } from "@/lib/format-currency";
 import { listAdminSubscriptionsRequest, toSubscription, updateAdminSubscriptionRequest } from "@/lib/subscription-admin-api";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
@@ -41,7 +42,7 @@ const AdminSubscriptions = () => {
       <PageHeader title="Subscriptions" subtitle="Base plan + per-seat pricing across all tenants." />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KpiCard label="MRR" value={`₹${totalMrr.toLocaleString("en-IN")}`} icon={CreditCard} accent="primary" animated={false} />
+        <KpiCard label="MRR" value={formatInr(totalMrr)} icon={CreditCard} accent="primary" animated={false} />
         <KpiCard label="Active" value={activeCount} hint={`of ${subs.length}`} icon={TrendingUp} accent="success" />
         <KpiCard label="On trial" value={trialCount} icon={Users} accent="accent" />
         <KpiCard label="Avg. seats" value={Math.round(subs.reduce((s, x) => s + x.usedSeats, 0) / Math.max(1, subs.length))} icon={Users} accent="warning" />
@@ -64,8 +65,8 @@ const AdminSubscriptions = () => {
                   <div className="text-xs text-muted-foreground mt-0.5">{s.plan} · {s.startDate} → {s.endDate}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-display text-lg font-bold tabular-nums">₹{computed.toLocaleString("en-IN")}<span className="text-xs font-normal text-muted-foreground">/mo</span></div>
-                  <div className="text-[10px] text-muted-foreground">Base ₹{s.monthlyAmount} + ₹{s.extraSeatPrice}/seat</div>
+                  <div className="font-display text-lg font-bold tabular-nums">{formatInr(computed)}<span className="text-xs font-normal text-muted-foreground">/mo</span></div>
+                  <div className="text-[10px] text-muted-foreground">Base {formatInr(s.monthlyAmount)} + {formatInr(s.extraSeatPrice)}/seat</div>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => toggleStatus(s.gymId, s.status)}>
                   {s.status === "active" ? "Suspend" : "Reactivate"}
@@ -89,7 +90,7 @@ const AdminSubscriptions = () => {
                 </div>
                 <div className="text-muted-foreground">
                   <div className="text-[10px] uppercase tracking-wider">Extra seats</div>
-                  <div className="font-semibold text-foreground">{Math.max(0, s.usedSeats - 1)} × ₹{s.extraSeatPrice}</div>
+                  <div className="font-semibold text-foreground">{Math.max(0, s.usedSeats - 1)} × {formatInr(s.extraSeatPrice)}</div>
                 </div>
               </div>
             </div>

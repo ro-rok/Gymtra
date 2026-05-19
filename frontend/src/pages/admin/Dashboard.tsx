@@ -6,6 +6,7 @@ import { SectionCard } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { getKeepaliveStatusRequest, listAdminGymsRequest, type KeepaliveStatus } from "@/lib/admin-api";
+import { formatInr, MIDDLE_DOT } from "@/lib/format-currency";
 import { listAdminSubscriptionsRequest, toSubscription } from "@/lib/subscription-admin-api";
 import { useCallback, useEffect, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
@@ -73,7 +74,7 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <KpiCard label="Active Gyms" value={activeGyms} hint={`of ${gyms.length} total`} icon={Building2} accent="primary" trend="up" trendValue={platformAnalytics ? `${platformAnalytics.retentionActiveGymsPct}%` : undefined} />
         <KpiCard label="Total Members" value={platformAnalytics?.activeMembersPlatform ?? totalMembers} icon={Users} accent="accent" trend="up" trendValue={platformAnalytics ? `${platformAnalytics.onboardingCompletionPct}% onboarded` : undefined} />
-        <KpiCard label="MRR" value={`â‚¹${mrr.toLocaleString("en-IN")}`} hint="recurring" icon={CreditCard} accent="success" animated={false} />
+        <KpiCard label="MRR" value={formatInr(mrr)} hint="recurring" icon={CreditCard} accent="success" animated={false} />
         <KpiCard label="Seat Utilization" value={`${seatUtil}%`} hint={`${usedSeats}/${totalSeats}`} icon={TrendingUp} accent="warning" animated={false} />
       </div>
 
@@ -146,7 +147,7 @@ const AdminDashboard = () => {
                 <div className="w-10 h-10 rounded-xl gradient-card border border-border flex items-center justify-center text-xl">{g.logo}</div>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold truncate">{g.name}</div>
-                  <div className="text-xs text-muted-foreground">/{g.slug} Â· {g.city}</div>
+                  <div className="text-xs text-muted-foreground">/{g.slug} {MIDDLE_DOT} {g.city}</div>
                 </div>
                 <StatusBadge status={g.isActive ? "active" : "inactive"} />
               </div>
@@ -164,7 +165,7 @@ const AdminDashboard = () => {
                     <div className="text-sm font-semibold truncate">{gym?.name || s.gymId}</div>
                     <StatusBadge status={s.status} />
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">{s.plan} Â· {s.usedSeats}/{s.seats} seats</div>
+                  <div className="text-xs text-muted-foreground mt-1">{s.plan} {MIDDLE_DOT} {s.usedSeats}/{s.seats} seats</div>
                   <div className="mt-2 h-1 rounded-full bg-muted overflow-hidden">
                     <div className="h-full bg-primary" style={{ width: `${(s.usedSeats / s.seats) * 100}%` }} />
                   </div>

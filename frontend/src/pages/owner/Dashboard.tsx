@@ -16,6 +16,7 @@ import { getLastAction, setLastAction } from "@/lib/onboarding-state";
 import { listPendingPasswordResetRequests } from "@/lib/auth-api";
 import { getISTDateString, getISTMonthKey } from "@/lib/datetime";
 import { getOwnerAnalyticsOverviewRequest, type OwnerAnalyticsOverview } from "@/lib/analytics-api";
+import { EM_DASH, ELLIPSIS, formatInr } from "@/lib/format-currency";
 import { AttendanceTrendChart, ReminderEngagementChart } from "@/components/Charts";
 
 const waLink = (phone: string, msg: string) =>
@@ -243,10 +244,10 @@ const OwnerDashboard = () => {
         <KpiCardSkeletonGrid count={4} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6" />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-          <Link to={`/${gymSlug}/owner/memberships`}><KpiCard label="Renewals due" value={renewalsDue ?? "â€”"} hint={hasSummary ? "Expiring within 14 days" : "Loading summaryâ€¦"} icon={AlertCircle} accent="warning" animated={false} /></Link>
-          <Link to={`/${gymSlug}/owner/reminders`}><KpiCard label="Unpaid dues" value={unpaidCount ?? "â€”"} hint={hasSummary ? "Follow up now" : "Loading summaryâ€¦"} icon={Receipt} accent="destructive" animated={false} /></Link>
-          <Link to={`/${gymSlug}/owner/members`}><KpiCard label="Active members" value={activeMembers ?? "â€”"} hint={hasSummary ? "From live summary" : "Loading summaryâ€¦"} icon={Users} accent="primary" animated={false} /></Link>
-          <Link to={`/${gymSlug}/owner/expenses`}><KpiCard label="Net revenue (month)" value={`â‚¹${monthRevenue.toLocaleString("en-IN")}`} hint={hasMonthlyMembershipRevenue || monthRevenue !== 0 ? "Memberships - expenses" : "No membership revenue this month"} icon={CircleDollarSign} accent="success" animated={false} /></Link>
+          <Link to={`/${gymSlug}/owner/memberships`}><KpiCard label="Renewals due" value={renewalsDue ?? EM_DASH} hint={hasSummary ? "Expiring within 14 days" : `Loading summary${ELLIPSIS}`} icon={AlertCircle} accent="warning" animated={false} /></Link>
+          <Link to={`/${gymSlug}/owner/reminders`}><KpiCard label="Unpaid dues" value={unpaidCount ?? EM_DASH} hint={hasSummary ? "Follow up now" : `Loading summary${ELLIPSIS}`} icon={Receipt} accent="destructive" animated={false} /></Link>
+          <Link to={`/${gymSlug}/owner/members`}><KpiCard label="Active members" value={activeMembers ?? EM_DASH} hint={hasSummary ? "From live summary" : `Loading summary${ELLIPSIS}`} icon={Users} accent="primary" animated={false} /></Link>
+          <Link to={`/${gymSlug}/owner/expenses`}><KpiCard label="Net revenue (month)" value={formatInr(monthRevenue)} hint={hasMonthlyMembershipRevenue || monthRevenue !== 0 ? "Memberships - expenses" : "No membership revenue this month"} icon={CircleDollarSign} accent="success" animated={false} /></Link>
         </div>
       )}
 
@@ -397,7 +398,7 @@ const OwnerDashboard = () => {
                           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold">{m.avatar}</div>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-sm truncate">{m.name}</div>
-                            <div className="text-xs text-foreground/80">Due {ms?.amount ? `â‚¹${Number(ms.amount).toLocaleString("en-IN")}` : "amount unavailable"}</div>
+                            <div className="text-xs text-foreground/80">Due {ms?.amount ? formatInr(Number(ms.amount)) : "amount unavailable"}</div>
                           </div>
                           <StatusBadge status={m.status} />
                           <Link to={`/${gymSlug}/owner/reminders`}>
