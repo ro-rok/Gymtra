@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { assignDietTemplateRequest, getMemberActiveDietRequest, listDietTemplatesRequest } from "@/lib/diet-api";
 import { listProgressLogsRequest } from "@/lib/progress-api";
+import { deriveNutritionGoal, nutritionGoalLabel } from "@/lib/nutrition-goal";
 
 const MemberProfile = () => {
   const { id, gymSlug } = useParams();
@@ -64,6 +65,8 @@ const MemberProfile = () => {
 
   const chartData = progress.map(p => ({ date: p.date.slice(5), weight: p.weightKg }));
   const sessionCount = m.sessionCount ?? 0;
+  const nutritionGoal = deriveNutritionGoal(m.currentWeightKg, m.goalWeightKg);
+  const nutritionLabel = nutritionGoalLabel(nutritionGoal);
 
   const handleAssign = async (templateId: string) => {
     await assignDietTemplateRequest({ memberId: m.id, templateId });
@@ -81,7 +84,14 @@ const MemberProfile = () => {
       <PageHeader title={m.name} subtitle={`Joined ${m.joinDate} · ${m.phone}`} action={<StatusBadge status={m.status} />} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KpiCard label="Goal" value={m.goalWeightKg ? `${m.goalWeightKg}kg` : "—"} icon={Target} accent="primary" animated={false} />
+        <KpiCard
+          label="Nutrition goal"
+          value={nutritionLabel}
+          hint={m.goalWeightKg ? `Target ${m.goalWeightKg} kg` : "Set goal weight in profile"}
+          icon={Target}
+          accent="primary"
+          animated={false}
+        />
         <KpiCard label="Sessions" value={sessionCount} hint="all-time check-ins" icon={Activity} accent="success" />
         <KpiCard label="Plan ends" value={ms?.expiryDate?.slice(5) || "—"} icon={Calendar} accent="warning" animated={false} />
         <KpiCard label="Weight" value={m.currentWeightKg ? `${m.currentWeightKg}kg` : "—"} icon={Flame} accent="accent" animated={false} />
@@ -106,8 +116,17 @@ const MemberProfile = () => {
         </SectionCard>
 
         {/* Diet assignment */}
-        <SectionCard title="Active diet plan" description={assignedTemplate ? assignedTemplate.name : "No plan assigned"}>
+        <SectionCard
+          title="Diet plans"
+          description={assignedTemplate ? `Assigned: ${assignedTemplate.name}` : `Recommended: ${nutritionLabel} (weekly veg)`}
+        >
           <div className="p-5 space-y-3">
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              Member sees <span className="font-medium text-foreground">{nutritionLabel}</span> vegetarian plans on their Diet page
+              {m.currentWeightKg != null && m.goalWeightKg != null
+                ? ` (${m.currentWeightKg} kg → ${m.goalWeightKg} kg).`
+                : "."}
+            </div>
             {assignedTemplate ? (
               <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-center gap-2 text-primary text-sm font-semibold">

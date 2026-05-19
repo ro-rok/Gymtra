@@ -28,3 +28,18 @@ export const getMemberActiveDietRequest = (memberId?: string) =>
     query: { memberId },
   });
 
+export type MemberMealPlan = {
+  nutritionGoal: "loss" | "gain" | "maintain";
+  nutritionGoalLabel: string;
+  currentWeightKg?: number | null;
+  goalWeightKg?: number | null;
+  assignedTemplate?: DietTemplate | null;
+  todayRecommended?: DietTemplate | null;
+  weeklyRecommended: DietTemplate[];
+};
+
+export const getMemberMealPlanRequest = (memberId?: string) =>
+  apiGet<MemberMealPlan>("/api/v1/diets/members/meal-plan", {
+    query: { memberId },
+  });
+

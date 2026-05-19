@@ -13,6 +13,7 @@ from app.modules.diets.schemas import (
     DietTemplateResponse,
     DietTemplateUpdateRequest,
     MemberActiveDietResponse,
+    MemberMealPlanResponse,
 )
 from app.modules.diets.service import DietsService
 
@@ -55,4 +56,17 @@ def get_member_active_diet(
     memberId: str | None = Query(default=None),
 ):
     return DietsService(db).get_member_active_diet(user, memberId)
+
+
+@router.get(
+    "/members/meal-plan",
+    response_model=MemberMealPlanResponse,
+    dependencies=[Depends(require_roles("owner", "trainer", "member", "super_admin"))],
+)
+def get_member_meal_plan(
+    db: Annotated[Database, Depends(get_db)],
+    user=Depends(get_current_user),
+    memberId: str | None = Query(default=None),
+):
+    return DietsService(db).get_member_meal_plan(user, memberId)
 

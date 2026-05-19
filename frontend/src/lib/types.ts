@@ -104,6 +104,7 @@ export interface DietTemplate {
   gymId: string;
   name: string;
   goal: "loss" | "gain" | "maintain";
+  weekday?: number;
   calories: number;
   meals: number;
   tags: string[];

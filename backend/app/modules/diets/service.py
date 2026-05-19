@@ -7,6 +7,8 @@ from pymongo.database import Database
 from app.core.audit import log_audit_event
 from app.core.serializers import as_str_id
 from app.modules.diets.repository import DietsRepository
+from app.core.datetime_ist import get_ist_weekday
+from app.modules.diets.nutrition_goal import derive_nutrition_goal, nutrition_goal_label
 from app.modules.diets.schemas import (
     DietAssignmentResponse,
     DietMacros,
@@ -15,6 +17,7 @@ from app.modules.diets.schemas import (
     DietTemplateResponse,
     DietTemplateUpdateRequest,
     MemberActiveDietResponse,
+    MemberMealPlanResponse,
 )
 
 
@@ -47,6 +50,7 @@ class DietsService:
             gymId=as_str_id(row.get("gym_id")) or "",
             name=row.get("name", ""),
             goal=row.get("goal", "maintain"),
+            weekday=row.get("weekday"),
             calories=int(row.get("calories") or 0),
             meals=int(row.get("meals") or 0),
             tags=row.get("tags") or [],
@@ -78,6 +82,7 @@ class DietsService:
                 "gym_id": gym_id,
                 "name": payload.name,
                 "goal": payload.goal,
+                "weekday": payload.weekday,
                 "calories": payload.calories,
                 "meals": payload.meals,
                 "tags": payload.tags,
@@ -154,5 +159,48 @@ class DietsService:
         return MemberActiveDietResponse(
             assignment=self._to_assignment(assignment),
             template=self._to_template(template) if template else None,
+        )
+
+    def _get_member_weights(self, member_oid: ObjectId, gym_id: ObjectId) -> tuple[float | None, float | None]:
+        profile = self.db.member_profiles.find_one({"user_id": member_oid, "gym_id": gym_id})
+        if not profile:
+            return None, None
+        current = profile.get("current_weight_kg")
+        goal = profile.get("goal_weight_kg")
+        return (
+            float(current) if current is not None else None,
+            float(goal) if goal is not None else None,
+        )
+
+    def get_member_meal_plan(self, actor: dict, member_id: str | None) -> MemberMealPlanResponse:
+        gym_id = self._resolve_actor_gym(actor)
+        target_member_id = member_id
+        if actor.get("role") == "member":
+            target_member_id = as_str_id(actor.get("_id"))
+        if not target_member_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Member id is required")
+        member_oid = self._ensure_member_in_gym(target_member_id, gym_id)
+
+        current_kg, goal_kg = self._get_member_weights(member_oid, gym_id)
+        nutrition_goal = derive_nutrition_goal(current_kg, goal_kg)
+
+        active = self.get_member_active_diet(actor, target_member_id)
+        assigned_template = active.template
+
+        weekly_rows = self.repo.list_templates_for_goal_week(gym_id, nutrition_goal)
+        weekly_recommended = [self._to_template(row) for row in weekly_rows]
+
+        today_weekday = get_ist_weekday()
+        today_row = self.repo.get_template_for_day(gym_id, nutrition_goal, today_weekday)
+        today_recommended = self._to_template(today_row) if today_row else None
+
+        return MemberMealPlanResponse(
+            nutritionGoal=nutrition_goal,
+            nutritionGoalLabel=nutrition_goal_label(nutrition_goal),
+            currentWeightKg=current_kg,
+            goalWeightKg=goal_kg,
+            assignedTemplate=assigned_template,
+            todayRecommended=today_recommended,
+            weeklyRecommended=weekly_recommended,
         )
 

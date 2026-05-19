@@ -28,6 +28,28 @@ export const formatISTLongDate = (value?: Date) =>
   }).format(value || new Date());
 
 /** Hour in Asia/Kolkata (0–23), independent of browser local timezone. */
+/** Monday=0 … Sunday=6 in Asia/Kolkata */
+export const getISTWeekday = (value?: Date): number => {
+  const weekdayPart = new Intl.DateTimeFormat("en-GB", {
+    timeZone: IST_TIMEZONE,
+    weekday: "short",
+  })
+    .formatToParts(value || new Date())
+    .find((p) => p.type === "weekday")?.value;
+  const map: Record<string, number> = {
+    Mon: 0,
+    Tue: 1,
+    Wed: 2,
+    Thu: 3,
+    Fri: 4,
+    Sat: 5,
+    Sun: 6,
+  };
+  return map[weekdayPart ?? "Mon"] ?? 0;
+};
+
+export const IST_WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
 export const getISTHour = (value?: Date): number => {
   const hourPart = new Intl.DateTimeFormat("en-GB", {
     timeZone: IST_TIMEZONE,

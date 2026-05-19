@@ -28,6 +28,28 @@ class DietsRepository:
     def list_templates(self, gym_id: ObjectId) -> list[dict]:
         return list(self.db.diet_templates.find({"gym_id": gym_id}).sort("updated_at", -1))
 
+    def list_templates_for_goal_week(self, gym_id: ObjectId, goal: str) -> list[dict]:
+        return list(
+            self.db.diet_templates.find({"gym_id": gym_id, "goal": goal, "weekday": {"$exists": True}}).sort(
+                "weekday", 1
+            )
+        )
+
+    def get_template_for_day(self, gym_id: ObjectId, goal: str, weekday: int) -> dict | None:
+        return self.db.diet_templates.find_one({"gym_id": gym_id, "goal": goal, "weekday": weekday})
+
+    def upsert_template_by_day_goal(self, gym_id: ObjectId, weekday: int, goal: str, payload: dict) -> dict:
+        now = datetime.now(timezone.utc)
+        return self.db.diet_templates.find_one_and_update(
+            {"gym_id": gym_id, "weekday": weekday, "goal": goal},
+            {
+                "$set": {**payload, "gym_id": gym_id, "weekday": weekday, "goal": goal, "updated_at": now},
+                "$setOnInsert": {"created_at": now},
+            },
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+
     def deactivate_member_assignments(self, member_id: ObjectId, gym_id: ObjectId) -> None:
         self.db.member_diet_assignments.update_many(
             {"member_id": member_id, "gym_id": gym_id, "active": True},

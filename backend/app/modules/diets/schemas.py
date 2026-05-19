@@ -22,6 +22,7 @@ class DietMacros(BaseModel):
 class DietTemplateCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     goal: DietGoal
+    weekday: int | None = Field(default=None, ge=0, le=6)
     calories: int = Field(ge=0)
     meals: int = Field(ge=1, le=12)
     tags: list[str] = Field(default_factory=list)
@@ -35,6 +36,7 @@ class DietTemplateCreateRequest(BaseModel):
 class DietTemplateUpdateRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     goal: DietGoal | None = None
+    weekday: int | None = Field(default=None, ge=0, le=6)
     calories: int | None = Field(default=None, ge=0)
     meals: int | None = Field(default=None, ge=1, le=12)
     tags: list[str] | None = None
@@ -50,6 +52,7 @@ class DietTemplateResponse(BaseModel):
     gymId: str
     name: str
     goal: DietGoal
+    weekday: int | None = None
     calories: int
     meals: int
     tags: list[str]
@@ -85,4 +88,14 @@ class DietAssignmentResponse(BaseModel):
 class MemberActiveDietResponse(BaseModel):
     assignment: DietAssignmentResponse | None = None
     template: DietTemplateResponse | None = None
+
+
+class MemberMealPlanResponse(BaseModel):
+    nutritionGoal: DietGoal
+    nutritionGoalLabel: str
+    currentWeightKg: float | None = None
+    goalWeightKg: float | None = None
+    assignedTemplate: DietTemplateResponse | None = None
+    todayRecommended: DietTemplateResponse | None = None
+    weeklyRecommended: list[DietTemplateResponse] = Field(default_factory=list)
 

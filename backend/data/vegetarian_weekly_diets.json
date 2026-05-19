@@ -1,0 +1,1011 @@
+[
+  {
+    "name": "Monday Vegetarian Cutting Diet",
+    "goal": "loss",
+    "weekday": 0,
+    "calories": 1680,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "high-protein",
+      "cutting",
+      "indian",
+      "budget"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 106,
+      "carbs": 148,
+      "fat": 48
+    },
+    "notes": "Vegetarian fat loss diet focused on muscle retention.",
+    "mealPlan": [
+      {
+        "time": "8:00 AM",
+        "name": "Besan Chilla (3 medium) + Tea (1 cup)",
+        "cal": 460,
+        "macros": "P28 C40 F16"
+      },
+      {
+        "time": "2:00 PM",
+        "name": "Paneer Bhurji (140g paneer) + Roti (2) + Salad",
+        "cal": 760,
+        "macros": "P46 C54 F34"
+      },
+      {
+        "time": "6:30 PM",
+        "name": "Fruit Bowl (1 apple + 1 banana) + Roasted Chana (40g)",
+        "cal": 460,
+        "macros": "P32 C54 F8"
+      }
+    ]
+  },
+  {
+    "name": "Monday Vegetarian Maintenance Diet",
+    "goal": "maintain",
+    "weekday": 0,
+    "calories": 2210,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "maintenance",
+      "indian",
+      "balanced"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 92,
+      "carbs": 272,
+      "fat": 64
+    },
+    "notes": "Balanced vegetarian Indian maintenance diet.",
+    "mealPlan": [
+      {
+        "time": "7:30 AM",
+        "name": "Vegetable Poha (1.5 plate) + Tea (1 cup)",
+        "cal": 560,
+        "macros": "P16 C84 F18"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Dal Chawal (2 bowl dal + 1.5 cup rice) + Salad + Amul Protein Lassi (1 bottle)",
+        "cal": 860,
+        "macros": "P38 C112 F22"
+      },
+      {
+        "time": "8:00 PM",
+        "name": "Mixed Veg Sabji (1.5 bowl) + Roti (3) + Curd (1 bowl)",
+        "cal": 790,
+        "macros": "P38 C76 F24"
+      }
+    ]
+  },
+  {
+    "name": "Monday Vegetarian Weight Gain Diet",
+    "goal": "gain",
+    "weekday": 0,
+    "calories": 2760,
+    "meals": 4,
+    "tags": [
+      "veg",
+      "gaining",
+      "high-protein",
+      "muscle-gain"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 114,
+      "carbs": 352,
+      "fat": 90
+    },
+    "notes": "Vegetarian high calorie Indian muscle gain diet.",
+    "mealPlan": [
+      {
+        "time": "7:00 AM",
+        "name": "Paneer Paratha (2 paratha + 90g paneer) + Tea (1 cup)",
+        "cal": 700,
+        "macros": "P28 C82 F28"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Rajma Chawal (1.5 bowl rajma + 2 cup rice) + Salad + Amul Protein Lassi (1 bottle)",
+        "cal": 860,
+        "macros": "P36 C120 F22"
+      },
+      {
+        "time": "5:00 PM",
+        "name": "Tea (1 cup) + Roasted Chana (50g) + Banana (2 medium)",
+        "cal": 400,
+        "macros": "P16 C58 F8"
+      },
+      {
+        "time": "8:30 PM",
+        "name": "Palak Paneer (150g paneer) + Roti (3)",
+        "cal": 800,
+        "macros": "P34 C92 F32"
+      }
+    ]
+  },
+  {
+    "name": "Tuesday Vegetarian Cutting Diet",
+    "goal": "loss",
+    "weekday": 1,
+    "calories": 1700,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "cutting",
+      "high-protein",
+      "indian"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 108,
+      "carbs": 150,
+      "fat": 50
+    },
+    "notes": "High protein vegetarian cutting diet.",
+    "mealPlan": [
+      {
+        "time": "8:00 AM",
+        "name": "Dal Chilla (3 medium) + Tea (1 cup)",
+        "cal": 470,
+        "macros": "P30 C40 F16"
+      },
+      {
+        "time": "2:00 PM",
+        "name": "Soya Pulao (1.5 bowl) + Salad + Curd (1 bowl)",
+        "cal": 770,
+        "macros": "P44 C80 F26"
+      },
+      {
+        "time": "6:30 PM",
+        "name": "Sprouts Chaat (1 bowl) + Apple (1 medium)",
+        "cal": 460,
+        "macros": "P34 C30 F8"
+      }
+    ]
+  },
+  {
+    "name": "Tuesday Vegetarian Maintenance Diet",
+    "goal": "maintain",
+    "weekday": 1,
+    "calories": 2240,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "maintenance",
+      "budget",
+      "indian"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 90,
+      "carbs": 278,
+      "fat": 66
+    },
+    "notes": "Sustainable vegetarian maintenance diet.",
+    "mealPlan": [
+      {
+        "time": "7:30 AM",
+        "name": "Oats Upma (1.5 bowl) + Tea (1 cup)",
+        "cal": 580,
+        "macros": "P18 C80 F18"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Chole Chawal (1.5 bowl chole + 1.5 cup rice) + Salad",
+        "cal": 860,
+        "macros": "P34 C116 F24"
+      },
+      {
+        "time": "8:00 PM",
+        "name": "Paneer Tikka (120g paneer) + Roti (3) + Curd (1 bowl)",
+        "cal": 800,
+        "macros": "P38 C82 F24"
+      }
+    ]
+  },
+  {
+    "name": "Tuesday Vegetarian Weight Gain Diet",
+    "goal": "gain",
+    "weekday": 1,
+    "calories": 2810,
+    "meals": 4,
+    "tags": [
+      "veg",
+      "muscle-gain",
+      "gaining",
+      "indian"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 116,
+      "carbs": 360,
+      "fat": 92
+    },
+    "notes": "Vegetarian Indian bulking meal plan.",
+    "mealPlan": [
+      {
+        "time": "7:00 AM",
+        "name": "Vegetable Poha (2 plate) + Tea (1 cup)",
+        "cal": 640,
+        "macros": "P18 C98 F18"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Chole Chawal (2 bowl chole + 2 cup rice) + Curd (1 bowl)",
+        "cal": 900,
+        "macros": "P34 C128 F26"
+      },
+      {
+        "time": "5:00 PM",
+        "name": "Tea (1 cup) + Makhana (40g) + Banana (2 medium)",
+        "cal": 360,
+        "macros": "P10 C52 F10"
+      },
+      {
+        "time": "8:30 PM",
+        "name": "Paneer Butter Masala (150g paneer) + Roti (3)",
+        "cal": 910,
+        "macros": "P54 C82 F38"
+      }
+    ]
+  },
+  {
+    "name": "Wednesday Vegetarian Cutting Diet",
+    "goal": "loss",
+    "weekday": 2,
+    "calories": 1690,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "cutting",
+      "budget",
+      "high-protein"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 104,
+      "carbs": 152,
+      "fat": 48
+    },
+    "notes": "Affordable vegetarian fat loss diet.",
+    "mealPlan": [
+      {
+        "time": "8:00 AM",
+        "name": "Oats Chilla (3 medium) + Tea (1 cup)",
+        "cal": 450,
+        "macros": "P24 C42 F14"
+      },
+      {
+        "time": "2:00 PM",
+        "name": "Paneer Bhurji (130g paneer) + Roti (2) + Salad",
+        "cal": 760,
+        "macros": "P44 C54 F34"
+      },
+      {
+        "time": "6:30 PM",
+        "name": "Fruit Bowl (1 apple + 1 orange) + Roasted Chana (40g)",
+        "cal": 480,
+        "macros": "P36 C56 F0"
+      }
+    ]
+  },
+  {
+    "name": "Wednesday Vegetarian Maintenance Diet",
+    "goal": "maintain",
+    "weekday": 2,
+    "calories": 2260,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "maintenance",
+      "homemade",
+      "indian"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 94,
+      "carbs": 280,
+      "fat": 66
+    },
+    "notes": "Homemade vegetarian maintenance meal plan.",
+    "mealPlan": [
+      {
+        "time": "7:30 AM",
+        "name": "Idli Sambar (4 idli + 1 bowl sambar) + Tea (1 cup)",
+        "cal": 620,
+        "macros": "P22 C88 F16"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Rajma Chawal (1.5 bowl rajma + 1.5 cup rice) + Salad",
+        "cal": 860,
+        "macros": "P36 C118 F22"
+      },
+      {
+        "time": "8:00 PM",
+        "name": "Mixed Veg Sabji (1.5 bowl) + Roti (3) + Curd (1 bowl)",
+        "cal": 780,
+        "macros": "P36 C74 F28"
+      }
+    ]
+  },
+  {
+    "name": "Wednesday Vegetarian Weight Gain Diet",
+    "goal": "gain",
+    "weekday": 2,
+    "calories": 2840,
+    "meals": 4,
+    "tags": [
+      "veg",
+      "high-protein",
+      "gaining",
+      "homemade"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 118,
+      "carbs": 358,
+      "fat": 94
+    },
+    "notes": "Homemade vegetarian high calorie muscle gain plan.",
+    "mealPlan": [
+      {
+        "time": "7:00 AM",
+        "name": "Aloo Paneer Paratha (2 paratha + 70g paneer) + Tea (1 cup)",
+        "cal": 720,
+        "macros": "P24 C88 F30"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Dal Chawal (2 bowl dal + 2 cup rice) + Salad + Amul Protein Lassi (1 bottle)",
+        "cal": 840,
+        "macros": "P38 C120 F18"
+      },
+      {
+        "time": "5:00 PM",
+        "name": "Tea (1 cup) + Sprouts Chaat (1 bowl) + Banana (1 medium)",
+        "cal": 370,
+        "macros": "P18 C44 F10"
+      },
+      {
+        "time": "8:30 PM",
+        "name": "Soya Chaap Masala (180g soya chaap) + Roti (3)",
+        "cal": 910,
+        "macros": "P38 C106 F36"
+      }
+    ]
+  },
+  {
+    "name": "Thursday Vegetarian Cutting Diet",
+    "goal": "loss",
+    "weekday": 3,
+    "calories": 1720,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "cutting",
+      "indian",
+      "high-protein"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 108,
+      "carbs": 154,
+      "fat": 50
+    },
+    "notes": "High protein vegetarian cutting diet.",
+    "mealPlan": [
+      {
+        "time": "8:00 AM",
+        "name": "Besan Chilla (3 medium) + Mint Chutney + Tea (1 cup)",
+        "cal": 480,
+        "macros": "P26 C42 F18"
+      },
+      {
+        "time": "2:00 PM",
+        "name": "Paneer Tikka (140g paneer) + Roti (2) + Salad",
+        "cal": 760,
+        "macros": "P46 C56 F32"
+      },
+      {
+        "time": "6:30 PM",
+        "name": "Sprouts Chaat (1 bowl) + Apple (1 medium)",
+        "cal": 480,
+        "macros": "P36 C56 F0"
+      }
+    ]
+  },
+  {
+    "name": "Thursday Vegetarian Maintenance Diet",
+    "goal": "maintain",
+    "weekday": 3,
+    "calories": 2230,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "maintenance",
+      "balanced",
+      "indian"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 90,
+      "carbs": 276,
+      "fat": 64
+    },
+    "notes": "Balanced vegetarian Indian diet.",
+    "mealPlan": [
+      {
+        "time": "7:30 AM",
+        "name": "Upma (1.5 bowl) + Tea (1 cup)",
+        "cal": 560,
+        "macros": "P14 C82 F18"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Dal Roti (2 bowl dal + 3 roti) + Salad + Amul Protein Lassi (1 bottle)",
+        "cal": 880,
+        "macros": "P40 C112 F24"
+      },
+      {
+        "time": "8:00 PM",
+        "name": "Palak Paneer (120g paneer) + Roti (3)",
+        "cal": 790,
+        "macros": "P36 C82 F22"
+      }
+    ]
+  },
+  {
+    "name": "Thursday Vegetarian Weight Gain Diet",
+    "goal": "gain",
+    "weekday": 3,
+    "calories": 2860,
+    "meals": 4,
+    "tags": [
+      "veg",
+      "muscle-gain",
+      "high-protein",
+      "indian"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 120,
+      "carbs": 364,
+      "fat": 96
+    },
+    "notes": "Vegetarian Indian bulking diet.",
+    "mealPlan": [
+      {
+        "time": "7:00 AM",
+        "name": "Stuffed Paneer Paratha (2 paratha + 100g paneer) + Tea (1 cup)",
+        "cal": 760,
+        "macros": "P32 C86 F32"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Black Chole Rice (2 bowl black chole + 2 cup rice) + Salad",
+        "cal": 890,
+        "macros": "P36 C132 F22"
+      },
+      {
+        "time": "5:00 PM",
+        "name": "Tea (1 cup) + Roasted Peanuts (40g) + Banana (2 medium)",
+        "cal": 410,
+        "macros": "P16 C42 F18"
+      },
+      {
+        "time": "8:30 PM",
+        "name": "Paneer Butter Masala (150g paneer) + Roti (3)",
+        "cal": 800,
+        "macros": "P36 C104 F24"
+      }
+    ]
+  },
+  {
+    "name": "Friday Vegetarian Cutting Diet",
+    "goal": "loss",
+    "weekday": 4,
+    "calories": 1680,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "cutting",
+      "budget",
+      "high-protein"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 106,
+      "carbs": 148,
+      "fat": 48
+    },
+    "notes": "Vegetarian fat loss meal plan.",
+    "mealPlan": [
+      {
+        "time": "8:00 AM",
+        "name": "Dal Chilla (3 medium) + Tea (1 cup)",
+        "cal": 470,
+        "macros": "P28 C40 F16"
+      },
+      {
+        "time": "2:00 PM",
+        "name": "Soya Chaap Masala (150g soya chaap) + Roti (2) + Salad",
+        "cal": 760,
+        "macros": "P46 C58 F28"
+      },
+      {
+        "time": "6:30 PM",
+        "name": "Fruit Bowl (1 apple + 1 orange) + Roasted Chana (40g)",
+        "cal": 450,
+        "macros": "P32 C50 F4"
+      }
+    ]
+  },
+  {
+    "name": "Friday Vegetarian Maintenance Diet",
+    "goal": "maintain",
+    "weekday": 4,
+    "calories": 2250,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "maintenance",
+      "indian",
+      "homemade"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 92,
+      "carbs": 280,
+      "fat": 64
+    },
+    "notes": "Practical vegetarian maintenance diet.",
+    "mealPlan": [
+      {
+        "time": "7:30 AM",
+        "name": "Vegetable Poha (1.5 plate) + Tea (1 cup)",
+        "cal": 580,
+        "macros": "P18 C84 F18"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Rajma Chawal (1.5 bowl rajma + 1.5 cup rice) + Salad + Amul Protein Lassi (1 bottle)",
+        "cal": 880,
+        "macros": "P40 C118 F22"
+      },
+      {
+        "time": "8:00 PM",
+        "name": "Paneer Bhurji (120g paneer) + Roti (3)",
+        "cal": 790,
+        "macros": "P34 C78 F24"
+      }
+    ]
+  },
+  {
+    "name": "Friday Vegetarian Weight Gain Diet",
+    "goal": "gain",
+    "weekday": 4,
+    "calories": 2880,
+    "meals": 4,
+    "tags": [
+      "veg",
+      "gaining",
+      "muscle-gain",
+      "homemade"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 120,
+      "carbs": 366,
+      "fat": 96
+    },
+    "notes": "Vegetarian calorie surplus Indian diet.",
+    "mealPlan": [
+      {
+        "time": "7:00 AM",
+        "name": "Paneer Sandwich (4 bread + 90g paneer) + Tea (1 cup)",
+        "cal": 700,
+        "macros": "P30 C84 F26"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Chole Chawal (2 bowl chole + 2 cup rice) + Curd (1 bowl)",
+        "cal": 910,
+        "macros": "P36 C132 F26"
+      },
+      {
+        "time": "5:00 PM",
+        "name": "Tea (1 cup) + Makhana (40g) + Banana (2 medium)",
+        "cal": 370,
+        "macros": "P10 C54 F10"
+      },
+      {
+        "time": "8:30 PM",
+        "name": "Palak Paneer (160g paneer) + Roti (3)",
+        "cal": 900,
+        "macros": "P44 C96 F34"
+      }
+    ]
+  },
+  {
+    "name": "Saturday Vegetarian Cutting Diet",
+    "goal": "loss",
+    "weekday": 5,
+    "calories": 1700,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "high-protein",
+      "cutting",
+      "homemade"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 108,
+      "carbs": 152,
+      "fat": 50
+    },
+    "notes": "Homemade vegetarian cutting meal plan.",
+    "mealPlan": [
+      {
+        "time": "8:00 AM",
+        "name": "Oats Upma (1 bowl) + Tea (1 cup)",
+        "cal": 450,
+        "macros": "P20 C46 F14"
+      },
+      {
+        "time": "2:00 PM",
+        "name": "Paneer Bhurji (140g paneer) + Roti (2) + Salad",
+        "cal": 770,
+        "macros": "P48 C56 F34"
+      },
+      {
+        "time": "6:30 PM",
+        "name": "Sprouts Chaat (1 bowl) + Apple (1 medium)",
+        "cal": 480,
+        "macros": "P40 C50 F2"
+      }
+    ]
+  },
+  {
+    "name": "Saturday Vegetarian Maintenance Diet",
+    "goal": "maintain",
+    "weekday": 5,
+    "calories": 2260,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "maintenance",
+      "budget",
+      "balanced"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 92,
+      "carbs": 278,
+      "fat": 66
+    },
+    "notes": "Balanced Indian vegetarian maintenance plan.",
+    "mealPlan": [
+      {
+        "time": "7:30 AM",
+        "name": "Idli Sambar (4 idli + 1 bowl sambar) + Tea (1 cup)",
+        "cal": 620,
+        "macros": "P22 C90 F16"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Dal Chawal (2 bowl dal + 1.5 cup rice) + Salad",
+        "cal": 860,
+        "macros": "P38 C116 F20"
+      },
+      {
+        "time": "8:00 PM",
+        "name": "Paneer Tikka (120g paneer) + Roti (3) + Curd (1 bowl)",
+        "cal": 780,
+        "macros": "P32 C72 F30"
+      }
+    ]
+  },
+  {
+    "name": "Saturday Vegetarian Weight Gain Diet",
+    "goal": "gain",
+    "weekday": 5,
+    "calories": 2850,
+    "meals": 4,
+    "tags": [
+      "veg",
+      "gaining",
+      "high-protein",
+      "budget"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 118,
+      "carbs": 360,
+      "fat": 94
+    },
+    "notes": "Budget friendly vegetarian muscle gain diet.",
+    "mealPlan": [
+      {
+        "time": "7:00 AM",
+        "name": "Aloo Paratha (3 paratha) + Tea (1 cup)",
+        "cal": 740,
+        "macros": "P18 C98 F28"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Rajma Chawal (2 bowl rajma + 2 cup rice) + Salad + Amul Protein Lassi (1 bottle)",
+        "cal": 920,
+        "macros": "P40 C132 F22"
+      },
+      {
+        "time": "5:00 PM",
+        "name": "Tea (1 cup) + Roasted Chana (50g) + Banana (2 medium)",
+        "cal": 400,
+        "macros": "P16 C58 F8"
+      },
+      {
+        "time": "8:30 PM",
+        "name": "Paneer Butter Masala (150g paneer) + Roti (3)",
+        "cal": 790,
+        "macros": "P44 C72 F36"
+      }
+    ]
+  },
+  {
+    "name": "Sunday Vegetarian Cutting Diet",
+    "goal": "loss",
+    "weekday": 6,
+    "calories": 1710,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "cutting",
+      "indian",
+      "high-protein"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 108,
+      "carbs": 154,
+      "fat": 48
+    },
+    "notes": "Vegetarian Indian fat loss meal plan.",
+    "mealPlan": [
+      {
+        "time": "8:00 AM",
+        "name": "Besan Chilla (3 medium) + Tea (1 cup)",
+        "cal": 470,
+        "macros": "P28 C42 F16"
+      },
+      {
+        "time": "2:00 PM",
+        "name": "Soya Pulao (1.5 bowl) + Salad + Curd (1 bowl)",
+        "cal": 780,
+        "macros": "P46 C80 F26"
+      },
+      {
+        "time": "6:30 PM",
+        "name": "Fruit Bowl (1 apple + 1 banana) + Roasted Chana (40g)",
+        "cal": 460,
+        "macros": "P34 C52 F6"
+      }
+    ]
+  },
+  {
+    "name": "Sunday Vegetarian Maintenance Diet",
+    "goal": "maintain",
+    "weekday": 6,
+    "calories": 2280,
+    "meals": 3,
+    "tags": [
+      "veg",
+      "maintenance",
+      "balanced",
+      "homemade"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 94,
+      "carbs": 282,
+      "fat": 66
+    },
+    "notes": "Sustainable vegetarian maintenance diet.",
+    "mealPlan": [
+      {
+        "time": "7:30 AM",
+        "name": "Oats Upma (1.5 bowl) + Tea (1 cup)",
+        "cal": 580,
+        "macros": "P18 C82 F18"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Black Chole Rice (1.5 bowl black chole + 1.5 cup rice) + Salad",
+        "cal": 900,
+        "macros": "P40 C122 F22"
+      },
+      {
+        "time": "8:00 PM",
+        "name": "Palak Paneer (120g paneer) + Roti (3)",
+        "cal": 800,
+        "macros": "P36 C78 F26"
+      }
+    ]
+  },
+  {
+    "name": "Sunday Vegetarian Weight Gain Diet",
+    "goal": "gain",
+    "weekday": 6,
+    "calories": 2890,
+    "meals": 4,
+    "tags": [
+      "veg",
+      "muscle-gain",
+      "gaining",
+      "high-protein"
+    ],
+    "preferenceTags": [
+      "vegetarian",
+      "north-indian"
+    ],
+    "allergyTags": [
+      "none"
+    ],
+    "macros": {
+      "protein": 122,
+      "carbs": 368,
+      "fat": 96
+    },
+    "notes": "Vegetarian Indian bulking meal plan.",
+    "mealPlan": [
+      {
+        "time": "7:00 AM",
+        "name": "Stuffed Paneer Paratha (2 paratha + 100g paneer) + Tea (1 cup)",
+        "cal": 760,
+        "macros": "P32 C88 F32"
+      },
+      {
+        "time": "1:30 PM",
+        "name": "Dal Chawal (2 bowl dal + 2 cup rice) + Salad + Amul Protein Lassi (1 bottle)",
+        "cal": 860,
+        "macros": "P40 C122 F18"
+      },
+      {
+        "time": "5:00 PM",
+        "name": "Tea (1 cup) + Sprouts Chaat (1 bowl) + Banana (2 medium)",
+        "cal": 390,
+        "macros": "P18 C54 F8"
+      },
+      {
+        "time": "8:30 PM",
+        "name": "Paneer Tikka Masala (160g paneer) + Roti (3)",
+        "cal": 880,
+        "macros": "P32 C104 F38"
+      }
+    ]
+  }
+]

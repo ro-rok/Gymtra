@@ -54,6 +54,7 @@ def ensure_indexes() -> None:
     db.password_reset_requests.create_index([("gym_id", 1), ("status", 1), ("created_at", -1)])
     db.password_reset_requests.create_index([("member_id", 1), ("status", 1)])
     db.diet_templates.create_index([("gym_id", 1), ("updated_at", -1)])
+    db.diet_templates.create_index([("gym_id", 1), ("goal", 1), ("weekday", 1)], unique=True)
     db.member_diet_assignments.create_index([("gym_id", 1), ("member_id", 1), ("active", 1)])
     db.member_diet_assignments.create_index([("gym_id", 1), ("member_id", 1), ("assigned_at", -1)])
     db.progress_logs.create_index([("gym_id", 1), ("member_id", 1), ("log_date", 1)])
