@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import { listExpensesRequest } from "@/lib/expenses-api";
 import { getLastAction, setLastAction } from "@/lib/onboarding-state";
 import { listPendingPasswordResetRequests } from "@/lib/auth-api";
-import { getISTDateString, getISTMonthKey } from "@/lib/datetime";
+import { getDashboardGreetingTitle, getISTDateString, getISTMonthKey } from "@/lib/datetime";
 import { getOwnerAnalyticsOverviewRequest, type OwnerAnalyticsOverview } from "@/lib/analytics-api";
 import { EM_DASH, ELLIPSIS, formatInr } from "@/lib/format-currency";
 import { AttendanceTrendChart, ReminderEngagementChart } from "@/components/Charts";
@@ -159,13 +159,12 @@ const OwnerDashboard = () => {
       }),
   ].slice(0, 6);
 
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const greetingTitle = getDashboardGreetingTitle(user?.name?.split(" ")[0] || "", "Coach");
 
   return (
     <>
       <PageHeader
-        title={`${greeting}, ${user?.name?.split(" ")[0] || "Coach"}`}
+        title={greetingTitle}
         subtitle="Focus on today's decisions first."
         action={
           <>

@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getAttendanceForDayRequest } from "@/lib/attendance-api";
 import { listMembersRequest } from "@/lib/member-api";
 import { useEffect, useState } from "react";
-import { getISTDateString } from "@/lib/datetime";
+import { getDashboardGreetingTitle, getISTDateString } from "@/lib/datetime";
 
 const TrainerDashboard = () => {
   const { gymSlug } = useParams();
@@ -46,7 +46,10 @@ const TrainerDashboard = () => {
 
   return (
     <>
-      <PageHeader title={`Hi Coach ${user?.name?.split(" ")[0] || "Coach"}`} subtitle="Start with action items for today's sessions." />
+      <PageHeader
+        title={getDashboardGreetingTitle(user?.name?.split(" ")[0] || "", "Coach")}
+        subtitle="Start with action items for today's sessions."
+      />
 
       <div className="md:hidden grid grid-cols-2 gap-2 mb-6">
         <Link to={`/${gymSlug}/trainer/attendance`}><Button className="w-full h-10 text-xs">Mark attendance</Button></Link>

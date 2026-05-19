@@ -20,7 +20,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { WaterTracker, WATER_GOAL_LITERS } from "@/components/WaterTracker";
 import { upsertDailyTasksRequest } from "@/lib/attendance-api";
 import { listMembershipsRequest } from "@/lib/membership-api";
-import { formatISTLongDate } from "@/lib/datetime";
+import { formatISTLongDate, getDashboardGreetingTitle } from "@/lib/datetime";
 import { useMemberAttendanceDashboard } from "@/hooks/useMemberAttendanceDashboard";
 import { track } from "@/lib/tracking";
 
@@ -234,7 +234,7 @@ const MemberDashboard = () => {
   return (
     <>
       <PageHeader
-        title={`Today, ${user?.name?.split(" ")[0] || "Member"}`}
+        title={getDashboardGreetingTitle(user?.name?.split(" ")[0] || "", "Member")}
         subtitle="Complete today's essentials and keep your streak alive."
         action={
           <>
