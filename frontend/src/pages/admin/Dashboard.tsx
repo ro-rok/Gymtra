@@ -35,8 +35,8 @@ const keepaliveBadgeStatus = (status: KeepaliveStatus | null): string => {
 const waterReminderBadgeStatus = (status: WaterReminderStatus | null): string => {
   if (!status?.enabled) return "inactive";
   if (!status.lastSentAt) return "waiting";
-  const seconds = status.secondsUntilNextScheduled ?? Number.POSITIVE_INFINITY;
-  return seconds <= 3600 ? "healthy" : "stale";
+  const ageMs = Date.now() - new Date(status.lastSentAt).getTime();
+  return ageMs <= 90 * 60 * 1000 ? "healthy" : "stale";
 };
 
 const AdminDashboard = () => {

@@ -78,6 +78,17 @@ export const triggerPushNotification = (payload: {
   userId?: string;
 }) => apiPost("/api/v1/notifications/trigger", payload);
 
+export const hasPushSubscription = async (): Promise<boolean> => {
+  if (!("serviceWorker" in navigator)) return false;
+  try {
+    const sw = await navigator.serviceWorker.ready;
+    const subscription = await sw.pushManager.getSubscription();
+    return Boolean(subscription);
+  } catch {
+    return false;
+  }
+};
+
 export const unregisterPushSubscription = async () => {
   if (!("serviceWorker" in navigator)) return;
   const sw = await navigator.serviceWorker.ready;

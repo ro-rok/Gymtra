@@ -15,6 +15,8 @@ from app.modules.member_profiles.reminder_preferences import (
 
 IST = ZoneInfo("Asia/Kolkata")
 INTERVAL_MINUTES = 60
+# Scheduler logs water reminders as water:YYYY-MM-DD:slot (dedupe key), not bare "water".
+WATER_EVENT_TYPE_PATTERN = r"^water"
 
 
 def _next_scheduled_datetime_ist(now_ist: datetime) -> datetime:
@@ -35,7 +37,13 @@ def get_water_reminder_status() -> dict:
     now_utc = datetime.now(timezone.utc)
     now_ist = now_utc.astimezone(IST)
 
-    latest = db.notification_logs.find_one({"event_type": "water"}, sort=[("created_at", -1)]) or {}
+    latest = (
+        db.notification_logs.find_one(
+            {"event_type": {"$regex": WATER_EVENT_TYPE_PATTERN}, "status": "sent"},
+            sort=[("created_at", -1)],
+        )
+        or {}
+    )
     gym_id = latest.get("gym_id")
     gym_name = None
     if gym_id and isinstance(gym_id, str) and ObjectId.is_valid(gym_id):
