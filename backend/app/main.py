@@ -57,6 +57,8 @@ def ensure_indexes() -> None:
     db.diet_templates.create_index([("gym_id", 1), ("goal", 1), ("weekday", 1)], unique=True)
     db.member_diet_assignments.create_index([("gym_id", 1), ("member_id", 1), ("active", 1)])
     db.member_diet_assignments.create_index([("gym_id", 1), ("member_id", 1), ("assigned_at", -1)])
+    db.diet_meal_logs.create_index([("gym_id", 1), ("member_id", 1), ("day_key", 1), ("meal_index", 1), ("entry_type", 1)])
+    db.diet_meal_logs.create_index([("gym_id", 1), ("member_id", 1), ("day_key", 1), ("consumed", 1)])
     db.progress_logs.create_index([("gym_id", 1), ("member_id", 1), ("log_date", 1)])
     db.expenses.create_index([("gym_id", 1), ("expense_date", -1)])
     db.staff_profiles.create_index([("gym_id", 1), ("user_id", 1)], unique=True)

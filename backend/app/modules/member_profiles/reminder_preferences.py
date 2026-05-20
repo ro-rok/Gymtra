@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 WATER_REMINDER_START_HOUR = 8
-WATER_REMINDER_END_HOUR = 22
+WATER_REMINDER_END_HOUR = 23
 
 
 def hourly_water_times() -> list[str]:

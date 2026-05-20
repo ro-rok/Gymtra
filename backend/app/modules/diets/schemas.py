@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Literal
 
@@ -98,4 +100,70 @@ class MemberMealPlanResponse(BaseModel):
     assignedTemplate: DietTemplateResponse | None = None
     todayRecommended: DietTemplateResponse | None = None
     weeklyRecommended: list[DietTemplateResponse] = Field(default_factory=list)
+    completedMealIndexes: list[int] = Field(default_factory=list)
+    customMeals: list[DietCustomMeal] = Field(default_factory=list)
+    consumedTotals: DietConsumedTotals = Field(default_factory=lambda: DietConsumedTotals())
+
+
+class DietConsumedTotals(BaseModel):
+    calories: float = 0
+    protein: float = 0
+    carbs: float = 0
+    fat: float = 0
+
+
+class DietCustomMeal(BaseModel):
+    mealId: str
+    name: str
+    time: str | None = None
+    calories: float = Field(ge=0)
+    protein: float = Field(ge=0)
+    carbs: float = Field(ge=0)
+    fat: float = Field(ge=0)
+    note: str | None = None
+    consumedAt: str
+
+
+class DietMealToggleRequest(BaseModel):
+    memberId: str | None = None
+    day: str | None = None
+    mealIndex: int = Field(ge=0, le=20)
+    consumed: bool
+
+
+class DietMealToggleResponse(BaseModel):
+    day: str
+    completedMealIndexes: list[int] = Field(default_factory=list)
+    consumedTotals: DietConsumedTotals = Field(default_factory=lambda: DietConsumedTotals())
+
+
+class DietCustomMealCreateRequest(BaseModel):
+    memberId: str | None = None
+    day: str | None = None
+    name: str = Field(min_length=1, max_length=140)
+    time: str | None = None
+    calories: float = Field(ge=0)
+    protein: float = Field(default=0, ge=0)
+    carbs: float = Field(default=0, ge=0)
+    fat: float = Field(default=0, ge=0)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class DietCustomMealDeleteRequest(BaseModel):
+    memberId: str | None = None
+    day: str | None = None
+    mealId: str
+
+
+class DietMacroSeriesItem(BaseModel):
+    day: str
+    calories: float = 0
+    protein: float = 0
+    carbs: float = 0
+    fat: float = 0
+
+
+class DietMacroSeriesResponse(BaseModel):
+    month: str
+    items: list[DietMacroSeriesItem] = Field(default_factory=list)
 

@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from "@/lib/api-client";
+import { apiGet, apiPatch, apiPost, apiRequest } from "@/lib/api-client";
 import type { DietTemplate, MemberDietAssignment } from "@/lib/types";
 
 type ApiDietTemplate = DietTemplate & {
@@ -36,10 +36,66 @@ export type MemberMealPlan = {
   assignedTemplate?: DietTemplate | null;
   todayRecommended?: DietTemplate | null;
   weeklyRecommended: DietTemplate[];
+  completedMealIndexes: number[];
+  customMeals: {
+    mealId: string;
+    name: string;
+    time?: string | null;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    note?: string | null;
+    consumedAt: string;
+  }[];
+  consumedTotals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
 };
 
 export const getMemberMealPlanRequest = (memberId?: string) =>
   apiGet<MemberMealPlan>("/api/v1/diets/members/meal-plan", {
     query: { memberId },
+  });
+
+export const toggleDietMealLogRequest = (payload: {
+  memberId?: string;
+  day?: string;
+  mealIndex: number;
+  consumed: boolean;
+}) => apiPost<{ day: string; completedMealIndexes: number[]; consumedTotals: MemberMealPlan["consumedTotals"] }>(
+  "/api/v1/diets/members/meal-log/toggle",
+  payload,
+);
+
+export const addCustomDietMealRequest = (payload: {
+  memberId?: string;
+  day?: string;
+  name: string;
+  time?: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  note?: string;
+}) => apiPost<MemberMealPlan>("/api/v1/diets/members/meal-log/custom", payload);
+
+export const deleteCustomDietMealRequest = (payload: { memberId?: string; day?: string; mealId: string }) =>
+  apiRequest<MemberMealPlan>("/api/v1/diets/members/meal-log/custom", {
+    method: "DELETE",
+    body: payload,
+  });
+
+export type MacroSeriesResponse = {
+  month: string;
+  items: { day: string; calories: number; protein: number; carbs: number; fat: number }[];
+};
+
+export const getMemberMacroSeriesRequest = (month?: string, memberId?: string) =>
+  apiGet<MacroSeriesResponse>("/api/v1/diets/members/macro-series", {
+    query: { month, memberId },
   });
 

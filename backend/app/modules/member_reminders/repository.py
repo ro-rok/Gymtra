@@ -60,3 +60,16 @@ class MemberRemindersRepository:
         return self.db.daily_tasks.find_one(
             {"gym_id": ObjectId(gym_id), "member_id": ObjectId(member_id), "day_key": day_key}
         )
+
+    def get_active_diet_assignment(self, *, gym_id: str, member_id: str) -> dict | None:
+        if not ObjectId.is_valid(gym_id) or not ObjectId.is_valid(member_id):
+            return None
+        return self.db.member_diet_assignments.find_one(
+            {"gym_id": ObjectId(gym_id), "member_id": ObjectId(member_id), "active": True},
+            sort=[("assigned_at", -1)],
+        )
+
+    def get_diet_template(self, *, gym_id: str, template_id: ObjectId) -> dict | None:
+        if not ObjectId.is_valid(gym_id):
+            return None
+        return self.db.diet_templates.find_one({"gym_id": ObjectId(gym_id), "_id": template_id})

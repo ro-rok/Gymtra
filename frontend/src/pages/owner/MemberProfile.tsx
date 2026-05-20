@@ -2,7 +2,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { KpiCard } from "@/components/KpiCard";
-import { WeightChart } from "@/components/Charts";
+import { MacroLineChart, WeightChart } from "@/components/Charts";
 import { SectionCard } from "@/components/SectionCard";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { listMembershipsRequest } from "@/lib/membership-api";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { assignDietTemplateRequest, getMemberActiveDietRequest, listDietTemplatesRequest } from "@/lib/diet-api";
+import { assignDietTemplateRequest, getMemberActiveDietRequest, getMemberMacroSeriesRequest, listDietTemplatesRequest } from "@/lib/diet-api";
 import { listProgressLogsRequest } from "@/lib/progress-api";
 import { deriveNutritionGoal, nutritionGoalLabel } from "@/lib/nutrition-goal";
 
@@ -27,6 +27,7 @@ const MemberProfile = () => {
   const [progress, setProgress] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [assignedTemplate, setAssignedTemplate] = useState<any | null>(null);
+  const [macroSeries, setMacroSeries] = useState<Array<{ day: string; protein: number; carbs: number; fat: number }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,6 +46,9 @@ const MemberProfile = () => {
         setProgress(progressRows.items || []);
         setTemplates(templateRows || []);
         setAssignedTemplate(activeDiet.template || null);
+        getMemberMacroSeriesRequest(undefined, id)
+          .then((res) => setMacroSeries((res.items || []).map((m) => ({ day: m.day.slice(8), protein: m.protein, carbs: m.carbs, fat: m.fat }))))
+          .catch(() => setMacroSeries([]));
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -165,13 +169,22 @@ const MemberProfile = () => {
         </SectionCard>
       </div>
 
-      {chartData.length > 0 && (
-        <div className="mt-6">
+      <div className="mt-6 space-y-6">
+        {chartData.length > 0 ? (
           <SectionCard title="Weight trend" description={`${chartData.length} entries · ${(chartData[chartData.length - 1].weight - chartData[0].weight).toFixed(1)} kg change`}>
             <div className="p-5"><WeightChart data={chartData} /></div>
           </SectionCard>
-        </div>
-      )}
+        ) : null}
+        <SectionCard title="Macro trend (monthly)" description="protein / carbs / fat per day">
+          <div className="p-5">
+            {macroSeries.length > 0 ? (
+              <MacroLineChart data={macroSeries} />
+            ) : (
+              <div className="text-sm text-muted-foreground">No macro tracking data yet.</div>
+            )}
+          </div>
+        </SectionCard>
+      </div>
     </>
   );
 };

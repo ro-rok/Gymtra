@@ -1,7 +1,8 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from bson import ObjectId
 from pymongo.database import Database
 
 from app.modules.member_profiles.reminder_preferences import (
@@ -16,9 +17,9 @@ logger = logging.getLogger(__name__)
 
 REMINDER_COPY: dict[str, tuple[str, str]] = {
     "water": ("Stay hydrated", "Log your water intake to keep today's streak going."),
-    "meal_breakfast": ("Breakfast reminder", "Don't skip breakfast — log your meal when you're done."),
-    "meal_lunch": ("Lunch reminder", "Time for lunch — mark your diet task complete after eating."),
-    "meal_dinner": ("Dinner reminder", "Evening meal check-in — log dinner to close out your day."),
+    "meal_breakfast": ("Breakfast reminder", "Don't skip breakfast - log your meal when you're done."),
+    "meal_lunch": ("Lunch reminder", "Time for lunch - mark your diet task complete after eating."),
+    "meal_dinner": ("Dinner reminder", "Evening meal check-in - log dinner to close out your day."),
 }
 
 WINDOW_TOLERANCE_MINUTES = 7
@@ -61,6 +62,20 @@ class MemberRemindersService:
             return False, -1
         return True, target_minutes
 
+    def _is_pre_meal_window(self, *, now_local: datetime, meal_hhmm: str) -> tuple[bool, int]:
+        parsed = self._parse_hhmm(meal_hhmm)
+        if not parsed:
+            return False, -1
+        meal_minutes = self._minutes_since_midnight(parsed[0], parsed[1])
+        reminder_minutes = meal_minutes - 30
+        if reminder_minutes < 0:
+            reminder_minutes += 24 * 60
+        current_minutes = self._minutes_since_midnight(now_local.hour, now_local.minute)
+        diff = abs(current_minutes - reminder_minutes)
+        if diff > WINDOW_TOLERANCE_MINUTES:
+            return False, -1
+        return True, reminder_minutes
+
     def _should_skip_water(self, task: dict | None) -> bool:
         if not task:
             return False
@@ -84,9 +99,15 @@ class MemberRemindersService:
         user_id: str,
         day_key: str,
         window_index: int,
+        title_override: str | None = None,
+        body_override: str | None = None,
     ) -> bool:
         dedupe_key = f"{category}:{day_key}:{window_index}"
-        title, body = REMINDER_COPY[category]
+        title, body = REMINDER_COPY.get(category, ("Reminder", "It's time for your next habit check-in."))
+        if title_override:
+            title = title_override
+        if body_override:
+            body = body_override
         tag = f"gymtra-{category}-{day_key}-{window_index}"
         self.notifications.send_event_async(
             event_type=category,
@@ -98,6 +119,17 @@ class MemberRemindersService:
             tag=tag,
         )
         return True
+
+    def _resolve_template_meals(self, *, gym_id: str, user_id: str) -> list[dict]:
+        assignment = self.repo.get_active_diet_assignment(gym_id=gym_id, member_id=user_id)
+        if not assignment:
+            return []
+        template_id = assignment.get("template_id")
+        if not isinstance(template_id, ObjectId):
+            return []
+        template = self.repo.get_diet_template(gym_id=gym_id, template_id=template_id) or {}
+        meals = template.get("meal_plan") or []
+        return [m for m in meals if isinstance(m, dict)]
 
     def run_due_reminders(self) -> dict:
         processed = 0
@@ -127,24 +159,44 @@ class MemberRemindersService:
                             window_index=water_idx,
                         ):
                             sent += 1
+
                 if prefs.get("diet_enabled", True):
-                    meal_times = prefs.get("meal_times") or DEFAULT_MEAL_TIMES
-                    meal_slots = [
-                        ("meal_breakfast", "breakfast", meal_times.get("breakfast", "08:00")),
-                        ("meal_lunch", "lunch", meal_times.get("lunch", "13:00")),
-                        ("meal_dinner", "dinner", meal_times.get("dinner", "20:00")),
-                    ]
-                    for idx, (category, slot, hhmm) in enumerate(meal_slots):
-                        in_window, _ = self._is_in_window(now_local=now_local, target_hhmm=hhmm)
-                        if not in_window or self._should_skip_meal(task, slot):
-                            continue
-                        if self._dispatch_reminder(
-                            category=category,
-                            gym_id=gym_id,
-                            user_id=member["user_id"],
-                            day_key=day_key,
-                            window_index=idx,
-                        ):
-                            sent += 1
+                    template_meals = self._resolve_template_meals(gym_id=gym_id, user_id=member["user_id"])
+                    if template_meals:
+                        for idx, meal in enumerate(template_meals):
+                            hhmm = str(meal.get("time") or "")
+                            in_window, _ = self._is_pre_meal_window(now_local=now_local, meal_hhmm=hhmm)
+                            if not in_window:
+                                continue
+                            meal_name = str(meal.get("name") or "your next meal")
+                            if self._dispatch_reminder(
+                                category="meal_upcoming",
+                                gym_id=gym_id,
+                                user_id=member["user_id"],
+                                day_key=day_key,
+                                window_index=idx,
+                                title_override="Upcoming meal in 30 minutes",
+                                body_override=f"Upcoming meal: {meal_name}",
+                            ):
+                                sent += 1
+                    else:
+                        meal_times = prefs.get("meal_times") or DEFAULT_MEAL_TIMES
+                        meal_slots = [
+                            ("meal_breakfast", "breakfast", meal_times.get("breakfast", "08:00")),
+                            ("meal_lunch", "lunch", meal_times.get("lunch", "13:00")),
+                            ("meal_dinner", "dinner", meal_times.get("dinner", "20:00")),
+                        ]
+                        for idx, (category, slot, hhmm) in enumerate(meal_slots):
+                            in_window, _ = self._is_in_window(now_local=now_local, target_hhmm=hhmm)
+                            if not in_window or self._should_skip_meal(task, slot):
+                                continue
+                            if self._dispatch_reminder(
+                                category=category,
+                                gym_id=gym_id,
+                                user_id=member["user_id"],
+                                day_key=day_key,
+                                window_index=idx,
+                            ):
+                                sent += 1
         logger.info("member_reminders.run", extra={"processed": processed, "sent": sent})
         return {"processed": processed, "sent": sent}

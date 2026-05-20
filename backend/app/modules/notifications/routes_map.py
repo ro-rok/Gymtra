@@ -5,6 +5,7 @@ NOTIFICATION_ROUTE_MAP: dict[str, str] = {
     "meal_breakfast": "/member",
     "meal_lunch": "/member",
     "meal_dinner": "/member",
+    "meal_upcoming": "/member/diet",
     "incomplete_daily_tasks": "/member",
     "password_reset_request": "/owner",
     "platform_test": "/",

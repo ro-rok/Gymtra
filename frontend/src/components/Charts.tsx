@@ -85,3 +85,21 @@ export const WaterChart = ({ data }: { data: { day: string; liters: number }[] }
     </BarChart>
   </ResponsiveContainer>
 );
+
+export const MacroLineChart = ({
+  data,
+}: {
+  data: { day: string; protein: number; carbs: number; fat: number }[];
+}) => (
+  <ResponsiveContainer width="100%" height={220}>
+    <LineChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+      <XAxis dataKey="day" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+      <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+      <Tooltip contentStyle={tooltipStyle} />
+      <Line type="monotone" dataKey="protein" stroke="hsl(var(--primary))" strokeWidth={2.2} dot={{ r: 2 }} />
+      <Line type="monotone" dataKey="carbs" stroke="hsl(var(--warning))" strokeWidth={2.2} dot={{ r: 2 }} />
+      <Line type="monotone" dataKey="fat" stroke="hsl(var(--accent))" strokeWidth={2.2} dot={{ r: 2 }} />
+    </LineChart>
+  </ResponsiveContainer>
+);
