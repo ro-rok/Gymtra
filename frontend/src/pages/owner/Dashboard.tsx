@@ -17,10 +17,8 @@ import { listPendingPasswordResetRequests } from "@/lib/auth-api";
 import { getDashboardGreetingTitle, getISTDateString, getISTMonthKey } from "@/lib/datetime";
 import { getOwnerAnalyticsOverviewRequest, type OwnerAnalyticsOverview } from "@/lib/analytics-api";
 import { EM_DASH, ELLIPSIS, formatInr } from "@/lib/format-currency";
+import { whatsAppUrl } from "@/lib/phone";
 import { AttendanceTrendChart, ReminderEngagementChart } from "@/components/Charts";
-
-const waLink = (phone: string, msg: string) =>
-  `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(msg)}`;
 
 const dayDiffFromToday = (isoDate?: string) => {
   if (!isoDate) return null;
@@ -366,7 +364,7 @@ const OwnerDashboard = () => {
                           <div className="font-medium text-sm truncate">{m.name}</div>
                           <div className="text-xs text-foreground/80">No check-in recorded today</div>
                         </div>
-                        <a href={waLink(m.phone, `Hey ${m.name}, your session is waiting for you today.`)} target="_blank" rel="noreferrer">
+                        <a href={whatsAppUrl(m.phone, `Hey ${m.name}, your session is waiting for you today.`)} target="_blank" rel="noreferrer">
                           <Button size="sm" variant="outline" className="h-8 gap-1.5"><MessageCircle className="w-3.5 h-3.5" /> Message</Button>
                         </a>
                       </div>

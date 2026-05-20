@@ -4,6 +4,7 @@ from urllib.parse import quote
 from bson import ObjectId
 from fastapi import HTTPException, status
 
+from app.core.phone import normalize_whatsapp_digits
 from app.core.serializers import as_str_id
 from app.modules.notifications.service import NotificationsService
 from app.modules.reminders.repository import RemindersRepository
@@ -25,7 +26,7 @@ class RemindersService:
 
     @staticmethod
     def _wa_url(phone: str, message: str) -> str:
-        digits = "".join([c for c in phone if c.isdigit()])
+        digits = normalize_whatsapp_digits(phone)
         return f"https://wa.me/{digits}?text={quote(message)}"
 
     def _resolve_actor_gym(self, actor: dict) -> ObjectId:
