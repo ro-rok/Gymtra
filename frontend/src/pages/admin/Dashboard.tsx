@@ -1,11 +1,17 @@
-﻿import { Building2, Users, CreditCard, TrendingUp, Plus, ArrowUpRight, Activity } from "lucide-react";
+﻿import { Building2, Users, CreditCard, TrendingUp, Plus, ArrowUpRight, Activity, Droplets } from "lucide-react";
 import { KpiCard } from "@/components/KpiCard";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SectionCard } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { getKeepaliveStatusRequest, listAdminGymsRequest, type KeepaliveStatus } from "@/lib/admin-api";
+import {
+  getKeepaliveStatusRequest,
+  getWaterReminderStatusRequest,
+  listAdminGymsRequest,
+  type KeepaliveStatus,
+  type WaterReminderStatus,
+} from "@/lib/admin-api";
 import { formatInr, MIDDLE_DOT } from "@/lib/format-currency";
 import { listAdminSubscriptionsRequest, toSubscription } from "@/lib/subscription-admin-api";
 import { useCallback, useEffect, useState } from "react";
@@ -26,15 +32,29 @@ const keepaliveBadgeStatus = (status: KeepaliveStatus | null): string => {
   return status.isHealthy ? "healthy" : "stale";
 };
 
+const waterReminderBadgeStatus = (status: WaterReminderStatus | null): string => {
+  if (!status?.enabled) return "inactive";
+  if (!status.lastSentAt) return "waiting";
+  const seconds = status.secondsUntilNextScheduled ?? Number.POSITIVE_INFINITY;
+  return seconds <= 3600 ? "healthy" : "stale";
+};
+
 const AdminDashboard = () => {
   const [gyms, setGyms] = useState<any[]>([]);
   const [subs, setSubs] = useState<any[]>([]);
   const [platformAnalytics, setPlatformAnalytics] = useState<PlatformAnalyticsOverview | null>(null);
   const [keepalive, setKeepalive] = useState<KeepaliveStatus | null>(null);
+  const [waterReminder, setWaterReminder] = useState<WaterReminderStatus | null>(null);
 
   const loadKeepalive = useCallback(() => {
     getKeepaliveStatusRequest()
       .then(setKeepalive)
+      .catch(() => undefined);
+  }, []);
+
+  const loadWaterReminder = useCallback(() => {
+    getWaterReminderStatusRequest()
+      .then(setWaterReminder)
       .catch(() => undefined);
   }, []);
 
@@ -50,9 +70,13 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     loadKeepalive();
-    const timer = window.setInterval(loadKeepalive, 60_000);
+    loadWaterReminder();
+    const timer = window.setInterval(() => {
+      loadKeepalive();
+      loadWaterReminder();
+    }, 60_000);
     return () => window.clearInterval(timer);
-  }, [loadKeepalive]);
+  }, [loadKeepalive, loadWaterReminder]);
   const totalMembers = gyms.reduce((s, g: any) => s + (g.members || 0), 0);
   const activeGyms = gyms.filter(g => g.isActive).length;
   const mrr = subs.filter(s => s.status === "active").reduce((sum, s) => sum + (s.monthlyAmount || 0) + Math.max(0, s.usedSeats - 1) * (s.extraSeatPrice || 0), 0);
@@ -120,6 +144,57 @@ const AdminDashboard = () => {
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">Loading keep-alive status…</div>
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Water Reminder Status" className="mb-6">
+        <div className="px-5 py-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Droplets className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold">Hourly hydration reminders</div>
+                <div className="text-xs text-muted-foreground">
+                  Fixed window {waterReminder ? `${waterReminder.windowStartHour}:00` : "8:00"} to{" "}
+                  {waterReminder ? `${waterReminder.windowEndHour}:00` : "23:00"} IST
+                </div>
+              </div>
+            </div>
+            <StatusBadge status={waterReminderBadgeStatus(waterReminder)} />
+          </div>
+          {waterReminder ? (
+            <div className="grid sm:grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Last water reminder</div>
+                <div className="font-medium mt-1">
+                  {waterReminder.lastSentAt
+                    ? format(new Date(waterReminder.lastSentAt), "d MMM yyyy, h:mm a")
+                    : "Not yet"}
+                </div>
+                {waterReminder.lastSentAt ? (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {formatDistanceToNow(new Date(waterReminder.lastSentAt), { addSuffix: true })}
+                    {waterReminder.lastSentGymName ? ` · ${waterReminder.lastSentGymName}` : ""}
+                  </div>
+                ) : null}
+              </div>
+              <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Next scheduled reminder</div>
+                <div className="font-medium mt-1">
+                  {waterReminder.nextScheduledAt
+                    ? format(new Date(waterReminder.nextScheduledAt), "d MMM yyyy, h:mm a")
+                    : "Not scheduled"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {formatNextPing(waterReminder.secondsUntilNextScheduled)} · every {waterReminder.intervalMinutes} min
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">Loading water reminder status...</div>
           )}
         </div>
       </SectionCard>

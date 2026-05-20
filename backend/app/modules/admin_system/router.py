@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends
 
 from app.core.keepalive_status import get_keepalive_status
+from app.core.water_reminder_status import get_water_reminder_status
 from app.dependencies.auth import require_roles
-from app.modules.admin_system.schemas import KeepaliveStatusResponse
+from app.modules.admin_system.schemas import KeepaliveStatusResponse, WaterReminderStatusResponse
 
 router = APIRouter(
     prefix="/admin/system",
@@ -24,4 +25,21 @@ def get_keepalive_status_endpoint():
         isHealthy=raw["is_healthy"],
         secondsSinceLastPing=raw["seconds_since_last_ping"],
         nextPingInSeconds=raw["next_ping_in_seconds"],
+    )
+
+
+@router.get("/water-reminders", response_model=WaterReminderStatusResponse)
+def get_water_reminders_status_endpoint():
+    raw = get_water_reminder_status()
+    return WaterReminderStatusResponse(
+        enabled=raw["enabled"],
+        lastSentAt=raw["last_sent_at"],
+        lastSentToUserId=raw["last_sent_to_user_id"],
+        lastSentGymId=raw["last_sent_gym_id"],
+        lastSentGymName=raw["last_sent_gym_name"],
+        windowStartHour=raw["window_start_hour"],
+        windowEndHour=raw["window_end_hour"],
+        intervalMinutes=raw["interval_minutes"],
+        nextScheduledAt=raw["next_scheduled_at"],
+        secondsUntilNextScheduled=raw["seconds_until_next_scheduled"],
     )

@@ -11,3 +11,16 @@ class KeepaliveStatusResponse(BaseModel):
     isHealthy: bool
     secondsSinceLastPing: int | None = None
     nextPingInSeconds: int | None = None
+
+
+class WaterReminderStatusResponse(BaseModel):
+    enabled: bool
+    lastSentAt: str | None = None
+    lastSentToUserId: str | None = None
+    lastSentGymId: str | None = None
+    lastSentGymName: str | None = None
+    windowStartHour: int
+    windowEndHour: int
+    intervalMinutes: int
+    nextScheduledAt: str | None = None
+    secondsUntilNextScheduled: int | None = None

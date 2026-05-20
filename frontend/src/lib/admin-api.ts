@@ -92,3 +92,19 @@ export type KeepaliveStatus = {
 
 export const getKeepaliveStatusRequest = () =>
   apiGet<KeepaliveStatus>("/api/v1/admin/system/keepalive");
+
+export type WaterReminderStatus = {
+  enabled: boolean;
+  lastSentAt: string | null;
+  lastSentToUserId: string | null;
+  lastSentGymId: string | null;
+  lastSentGymName: string | null;
+  windowStartHour: number;
+  windowEndHour: number;
+  intervalMinutes: number;
+  nextScheduledAt: string | null;
+  secondsUntilNextScheduled: number | null;
+};
+
+export const getWaterReminderStatusRequest = () =>
+  apiGet<WaterReminderStatus>("/api/v1/admin/system/water-reminders");
