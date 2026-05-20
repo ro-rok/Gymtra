@@ -43,7 +43,8 @@ export const subscribeToPush = async (): Promise<PushSubscription | null> => {
   }
 
   await waitForServiceWorkerRegistration();
-  const permission = await Notification.requestPermission();
+  const permission =
+    Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
   if (permission !== "granted") return null;
 
   const { publicKey } = await getVapidPublicKey();

@@ -10,6 +10,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { PageMeta } from "@/components/PageMeta";
 import { GymIdentity } from "@/components/GymIdentity";
 import { createPasswordResetRequest, ownerForgotPasswordRequest } from "@/lib/auth-api";
+import { getDashboardPathForUser } from "@/lib/dashboard-routes";
 import { getStayLoggedInPreference, setStayLoggedInPreference } from "@/lib/auth-storage";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -42,9 +43,11 @@ const GymLogin = () => {
   const redirectTo = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
 
   useEffect(() => {
-    if (user && user.gymSlug === gymSlug) {
-      const rolePath = user.role === "owner" ? "owner" : user.role === "trainer" ? "trainer" : "member";
-      navigate(`/${gymSlug}/${rolePath}`, { replace: true });
+    if (!user) return;
+    const dashboardPath = getDashboardPathForUser(user);
+    if (!dashboardPath) return;
+    if (user.role === "super_admin" || user.gymSlug === gymSlug) {
+      navigate(dashboardPath, { replace: true });
     }
   }, [gymSlug, navigate, user]);
 
@@ -59,13 +62,12 @@ const GymLogin = () => {
         ? await loginWithPhone(phone, password, gymSlug)
         : await login(email, password, gymSlug);
     setLoading(false);
-    if (result.success) {
-      const role = result.user?.role;
-      const rolePath = role === "owner" ? "owner" : role === "trainer" ? "trainer" : "member";
+    if (result.success && result.user) {
+      const dashboardPath = getDashboardPathForUser(result.user);
       const safeRedirect =
-        redirectTo?.pathname?.startsWith(`/${gymSlug}/`) && redirectTo.pathname.includes(`/${rolePath}`)
+        redirectTo?.pathname?.startsWith(`/${gymSlug}/`) && dashboardPath && redirectTo.pathname.startsWith(dashboardPath)
           ? `${redirectTo.pathname}${redirectTo.search || ""}`
-          : `/${gymSlug}/${rolePath}`;
+          : dashboardPath ?? `/${gymSlug}/member`;
       navigate(safeRedirect);
     } else {
       toast({ title: "Login failed", description: result.error, variant: "destructive" });

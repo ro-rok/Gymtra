@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/contexts/TenantContext";
+import { getDashboardPathForUser } from "@/lib/dashboard-routes";
 import type { Role } from "@/lib/types";
 
 interface ProtectedRouteProps {
@@ -35,7 +36,8 @@ export const ProtectedRoute = ({ allowedRoles, children, gymScoped = false }: Pr
   }
 
   if (!allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    const dashboardPath = getDashboardPathForUser(user);
+    return <Navigate to={dashboardPath ?? "/"} replace />;
   }
 
   if (user.mustChangePassword && !location.pathname.endsWith("/change-password-required")) {
@@ -49,7 +51,8 @@ export const ProtectedRoute = ({ allowedRoles, children, gymScoped = false }: Pr
   if (gymScoped && user.role !== "super_admin") {
     const pathSlug = location.pathname.split("/")[1];
     if (user.gymSlug && user.gymSlug !== pathSlug) {
-      return <Navigate to={`/${user.gymSlug}`} replace />;
+      const dashboardPath = getDashboardPathForUser(user);
+      return <Navigate to={dashboardPath ?? `/${user.gymSlug}`} replace />;
     }
   }
 

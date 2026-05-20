@@ -16,7 +16,9 @@ export const usePushRegistration = () => {
     const sw = await navigator.serviceWorker.ready;
     let subscription = await sw.pushManager.getSubscription();
 
-    if (!subscription && requestPermission) {
+    const maySubscribe =
+      requestPermission || (typeof Notification !== "undefined" && Notification.permission === "granted");
+    if (!subscription && maySubscribe) {
       subscription = await subscribeToPush();
     }
     if (!subscription) return false;

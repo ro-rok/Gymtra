@@ -5,12 +5,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { HomeRoute } from "@/components/HomeRoute";
 import { TenantProvider } from "@/contexts/TenantContext";
 import { OwnerOnboardingGate } from "@/components/OwnerOnboardingGate";
 import { PageTransition } from "@/components/PageTransition";
 import NotFound from "./pages/NotFound";
 
-import Landing from "./pages/Landing";
 import GymLogin from "./pages/GymLogin";
 import AdminLogin from "./pages/AdminLogin";
 
@@ -62,7 +62,7 @@ const App = () => (
           <PwaShell />
           <PageTransition>
             <Routes>
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<HomeRoute />} />
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/demo/:gymSlug" element={<OwnerDemo />} />
 
