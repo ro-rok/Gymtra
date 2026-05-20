@@ -90,8 +90,9 @@ async def lifespan(_: FastAPI):
     validate_runtime_security(settings)
     ensure_indexes()
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(_run_member_reminders_job, "interval", minutes=5, id="member_reminders")
+    scheduler.add_job(_run_member_reminders_job, "interval", minutes=1, id="member_reminders")
     scheduler.start()
+    _run_member_reminders_job()
     if os.getenv("RENDER"):
         keepalive_service.start()
     yield

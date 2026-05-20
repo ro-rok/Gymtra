@@ -22,7 +22,8 @@ REMINDER_COPY: dict[str, tuple[str, str]] = {
     "meal_dinner": ("Dinner reminder", "Evening meal check-in - log dinner to close out your day."),
 }
 
-WINDOW_TOLERANCE_MINUTES = 7
+# Meal / pre-meal: match within ±12 min of target (scheduler runs every 1 min).
+WINDOW_TOLERANCE_MINUTES = 12
 
 
 class MemberRemindersService:
@@ -44,10 +45,10 @@ class MemberRemindersService:
         return hour * 60 + minute
 
     def _water_reminder_window_index(self, now_local: datetime) -> int | None:
+        """One water reminder per clock hour (8–23). Any minute in that hour may trigger;
+        dedupe_key water:{day}:{slot} ensures at most one successful send per hour."""
         hour = now_local.hour
         if hour < WATER_REMINDER_START_HOUR or hour > WATER_REMINDER_END_HOUR:
-            return None
-        if now_local.minute > WINDOW_TOLERANCE_MINUTES:
             return None
         return hour - WATER_REMINDER_START_HOUR
 
@@ -109,7 +110,7 @@ class MemberRemindersService:
         if body_override:
             body = body_override
         tag = f"gymtra-{category}-{day_key}-{window_index}"
-        self.notifications.send_event_async(
+        self.notifications.send_event(
             event_type=category,
             title=title,
             body=body,
